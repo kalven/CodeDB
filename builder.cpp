@@ -1,6 +1,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/xpressive/xpressive_dynamic.hpp>
+#include <boost/program_options.hpp>
 
 #include <string>
 #include <fstream>
@@ -8,6 +9,7 @@
 
 namespace bfs = boost::filesystem;
 namespace bxp = boost::xpressive;
+namespace bpo = boost::program_options;
 
 class builder
 {
@@ -37,13 +39,10 @@ class builder
         {
             process_input_line(line);
 
-            if(!line.empty())
-            {
-                line  += char(10);
-                bytes += line.size();
+            line  += char(10);
+            bytes += line.size();
 
-                m_packed.write(line.c_str(), line.size());
-            }
+            m_packed.write(line.c_str(), line.size());
         }
 
         m_index << bytes << ':' << path << '\n';
@@ -60,13 +59,14 @@ class builder
     std::ofstream m_index;
 };
 
-void process_directory(builder& b, const bfs::path& path)
+struct options
 {
-    static const bxp::sregex file_re(bxp::sregex::compile(".*?\\.(h|hpp|c|cpp)$",
-                                                          bxp::regex_constants::ECMAScript|
-                                                          bxp::regex_constants::icase|
-                                                          bxp::regex_constants::optimize));
+    bxp::sregex m_file_inc_re;
+    bxp::sregex m_dir_excl_re;
+};
 
+void process_directory(builder& b, options& o, const bfs::path& path)
+{
     if(!bfs::exists(path))
     {
         std::cerr << path << " does not exist" << std::endl;
@@ -78,18 +78,18 @@ void process_directory(builder& b, const bfs::path& path)
         const bfs::path& f = *i;
         if(bfs::is_directory(f))
         {
-            if(f.filename() != ".svn")
-                process_directory(b, f);
+            if(!regex_match(f.filename(), o.m_dir_excl_re))
+                process_directory(b, o, f);
         }
         else
         {
-            if(regex_match(f.filename(), file_re))
+            if(regex_match(f.filename(), o.m_file_inc_re))
                 b.process_file(f.file_string());
         }
     }
 }
 
-bfs::path make_absolute(const char* path_str)
+bfs::path make_absolute(const std::string& path_str)
 {
     return bfs::system_complete(bfs::path(path_str));
 }
@@ -98,10 +98,48 @@ int main(int argc, char** argv)
 {
     try
     {
-        builder b("code.dat", "code.idx");
+        bpo::options_description desc("Options");
+        desc.add_options()
+            ("help,h", "show this help message")
+            ("append,a", "append to an existing db (default: overwrite)")
+            ("dir-exclude,d",  bpo::value<std::string>()->default_value(""), "directories to exclude (default: all)")
+            ("file-include,i", bpo::value<std::string>()->default_value(".*"), "files to include (default: all)")
+            ("output,o",       bpo::value<std::string>(), "output filename");
 
-        for(char** i = argv+1; i != (argv+argc); ++i)
-            process_directory(b, make_absolute(*i));
+        bpo::variables_map vm;
+        bpo::parsed_options parsed =
+            bpo::command_line_parser(argc, argv).options(desc).allow_unregistered().run();
+        bpo::store(parsed, vm);
+        bpo::notify(vm);
+
+        if(vm.count("help") || !vm.count("output"))
+        {
+            std::cerr << "Usage: builder -f BASE [OPTION]... DIRECTORY...\n"
+                      << "Build db recursively from files in each DIRECTORY.\n"
+                      << "Creates files BASE.dat and BASE.idx.\n\n"
+                      << "Example: builder -ocode -d '\\.svn' -i /usr/include\n\n"
+                      << desc << std::endl;
+            return 0;
+        }
+
+        std::string output       = vm["output"].as<std::string>();
+        std::string dir_exclude  = vm["dir-exclude"].as<std::string>();
+        std::string file_include = vm["file-include"].as<std::string>();
+
+        std::vector<std::string> dirs =
+            bpo::collect_unrecognized(parsed.options, bpo::include_positional);
+
+        bxp::regex_constants::syntax_option_type regex_options =
+            bxp::regex_constants::ECMAScript|bxp::regex_constants::optimize;
+        
+        options opt;
+
+        opt.m_file_inc_re = bxp::sregex::compile(file_include, regex_options);
+        opt.m_dir_excl_re = bxp::sregex::compile(dir_exclude, regex_options);
+
+        builder b(output + ".dat", output + ".idx");
+        for(unsigned i = 0; i != dirs.size(); ++i)
+            process_directory(b, opt, make_absolute(dirs[i]));
     }
     catch(const std::exception& e)
     {
