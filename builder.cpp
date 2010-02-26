@@ -1,3 +1,5 @@
+// CodeDB - public domain - 2010 Daniel Andersson
+
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/xpressive/xpressive_dynamic.hpp>
