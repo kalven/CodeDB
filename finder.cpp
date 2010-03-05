@@ -22,6 +22,13 @@ bool isprefix(const std::string& big, const std::string& prefix)
     return big.size() >= prefix.size() && big.compare(0, prefix.size(), prefix) == 0;
 }
 
+std::string escape_regex(std::string text)
+{
+    static const bxp::sregex escape_re =
+        bxp::sregex::compile("([\\^\\.\\$\\|\\(\\)\\[\\]\\*\\+\\?\\/\\\\])");
+    return bxp::regex_replace(text, escape_re, std::string("\\$1"));
+}
+
 std::size_t count_lines(const char* begin, const char* end, const char*& last_line)
 {
     std::size_t count = 0;
@@ -57,9 +64,9 @@ class finder
         load_index(index);
     }
 
-    void search(const bxp::cregex& re, const std::string& prefix)
+    void search(const bxp::cregex& re, const bxp::cregex& file_re)
     {
-        bxp::cmatch what;
+        bxp::cmatch what, file_what;
 
         if(m_data == m_data_end)
             return;
@@ -67,11 +74,12 @@ class finder
         const char* file_start = m_data;
         for(index_t::const_iterator i = m_index.begin(); i != m_index.end(); ++i)
         {
+            const std::string& file = i->second;
             const char* file_end = m_data + i->first;
             const char* search_start = file_start;
             std::size_t line = 0;
 
-            if(isprefix(i->second, prefix))
+            if(regex_search(file.c_str(), file.c_str() + file.size(), file_what, file_re))
             {
                 while(regex_search(search_start, file_end, what, re))
                 {
@@ -82,7 +90,7 @@ class finder
                     line += count_lines(search_start, m_data + offset, line_start);
                     const char* line_end = std::strchr(line_start, 10);
 
-                    std::cout << i->second << ':' << (line+1) << ':';
+                    std::cout << file << ':' << (line+1) << ':';
                     std::cout.write(line_start, line_end - line_start);
                     std::cout << '\n';
 
@@ -145,7 +153,8 @@ int main(int argc, char** argv)
         desc.add_options()
             ("help,h", "show this help message")
             ("ignore-case,i", "ignore case distinctions")
-            ("subdir,d", bpo::value<std::string>()->default_value(""), "limit search to a specific sub directory")
+            ("file-prefix,f", bpo::value<std::string>(), "limit search to files that match a prefix")
+            ("file-regex,F", bpo::value<std::string>(), "limit search to files that match a regex")
             ("input,b",  bpo::value<std::string>(), "input base name");
 
         bpo::variables_map vm;
@@ -162,7 +171,10 @@ int main(int argc, char** argv)
                       << desc << std::endl;
             return 0;
         }
-        
+
+        if(vm.count("file-prefix") && vm.count("file-regex"))
+            throw std::runtime_error("file-prefix and file-regex are mutually exclusive");
+
         bxp::regex_constants::syntax_option_type regex_options =
             bxp::regex_constants::ECMAScript|
             bxp::regex_constants::not_dot_newline|
@@ -170,7 +182,12 @@ int main(int argc, char** argv)
         if(vm.count("ignore-case"))
             regex_options = regex_options|bxp::regex_constants::icase;
 
-        std::string subdir = vm["subdir"].as<std::string>();
+        std::string file_match;
+        if(vm.count("file-prefix"))
+            file_match = "^" + escape_regex(vm["file-prefix"].as<std::string>()) + ".*";
+        else if(vm.count("file-regex"))
+            file_match = vm["file-regex"].as<std::string>();
+
         std::string input  = vm["input"].as<std::string>();
 
         std::vector<std::string> patterns =
@@ -178,7 +195,8 @@ int main(int argc, char** argv)
 
         finder f(input + ".dat", input + ".idx");
         for(unsigned i = 0; i != patterns.size(); ++i)
-            f.search(bxp::cregex::compile(patterns[i].c_str(), regex_options), subdir);
+            f.search(bxp::cregex::compile(patterns[i].c_str(), regex_options),
+                     bxp::cregex::compile(file_match, regex_options));
     }
     catch(const std::exception& e)
     {
