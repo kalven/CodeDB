@@ -17,11 +17,6 @@ namespace bxp = boost::xpressive;
 namespace bip = boost::interprocess;
 namespace bpo = boost::program_options;
 
-bool isprefix(const std::string& big, const std::string& prefix)
-{
-    return big.size() >= prefix.size() && big.compare(0, prefix.size(), prefix) == 0;
-}
-
 std::string escape_regex(std::string text)
 {
     static const bxp::sregex escape_re =
