@@ -83,13 +83,12 @@ class finder
 
                     const char* line_start;
                     line += count_lines(search_start, m_data + offset, line_start);
-                    const char* line_end = std::strchr(line_start, 10);
+                    const char* line_end = std::strchr(line_start, 10) + 1;
 
                     std::cout << file << ':' << (line+1) << ':';
                     std::cout.write(line_start, line_end - line_start);
-                    std::cout << '\n';
 
-                    search_start = line_end + 1;
+                    search_start = line_end;
                     line++;
 
                     if(search_start >= file_end)
