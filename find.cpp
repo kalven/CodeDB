@@ -1,6 +1,7 @@
 // CodeDB - public domain - 2010 Daniel Andersson
 
 #include "find.hpp"
+#include "options.hpp"
 
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
@@ -16,6 +17,13 @@ namespace bxp = boost::xpressive;
 
 namespace
 {
+    std::string escape_regex(std::string text)
+    {
+        static const bxp::sregex escape_re =
+            bxp::sregex::compile("([\\^\\.\\$\\|\\(\\)\\[\\]\\*\\+\\?\\/\\\\])");
+        return bxp::regex_replace(text, escape_re, std::string("\\$1"));
+    }
+
     std::size_t count_lines(const char* begin, const char* end, const char*& last_line)
     {
         std::size_t count = 0;
@@ -146,7 +154,24 @@ namespace
     };
 }
 
-void find(const boost::filesystem::path& cdb_path)
+void find(const boost::filesystem::path& cdb_path, const options& opt)
 {
     finder f(cdb_path / "blob", cdb_path / "index");
+
+    bxp::regex_constants::syntax_option_type regex_options =
+        bxp::regex_constants::ECMAScript|
+        bxp::regex_constants::not_dot_newline|
+        bxp::regex_constants::optimize;
+    if(opt.m_options.count("-i"))
+        regex_options = regex_options|bxp::regex_constants::icase;
+
+    std::string file_match(".*");
+    // if(vm.count("file-prefix"))
+    //     file_match = "^" + escape_regex(vm["file-prefix"].as<std::string>()) + ".*";
+    // else if(vm.count("file-regex"))
+    //     file_match = vm["file-regex"].as<std::string>();
+
+    for(unsigned i = 0; i != opt.m_args.size(); ++i)
+        f.search(bxp::cregex::compile(opt.m_args[i].c_str(), regex_options),
+                 bxp::cregex::compile(file_match, regex_options));
 }

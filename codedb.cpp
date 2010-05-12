@@ -62,7 +62,7 @@ int main(int argc, char** argv)
                 build(require_codedb_path(bfs::initial_path()));
                 break;
             case options::find:
-                find(require_codedb_path(bfs::initial_path()));
+                find(require_codedb_path(bfs::initial_path()), opt);
                 break;
             default:
                 std::cerr << "Not implemented" << std::endl;
