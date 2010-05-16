@@ -10,6 +10,8 @@
 
 #include <boost/filesystem.hpp>
 
+struct options;
+
 class config
 {
   public:
@@ -28,5 +30,7 @@ class config
 
 void save_config(const config&, const boost::filesystem::path&);
 config load_config(const boost::filesystem::path&);
+
+void run_config(const boost::filesystem::path& cdb_path, const options& opt);
 
 #endif

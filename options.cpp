@@ -34,18 +34,18 @@ options parse_cmdline(int argc, char** argv)
         if(args.size() > 1)
             throw std::runtime_error("Invalid argument");
     }
-    else if(args[0] == "add")
-    {
-        result.m_mode = options::add;
-        if(args.size() == 1)
-            throw std::runtime_error("Invalid argument");
-        result.m_args.insert(result.m_args.end(), args.begin()+1, args.end());
-    }
     else if(args[0] == "build")
     {
         result.m_mode = options::build;
         if(args.size() > 1)
             throw std::runtime_error("Invalid argument");
+    }
+    else if(args[0] == "config")
+    {
+        result.m_mode = options::config;
+        if(args.size() > 3)
+            throw std::runtime_error("Invalid argument");
+        result.m_args.insert(result.m_args.end(), args.begin()+1, args.end());
     }
     else if(args[0] == "find")
     {

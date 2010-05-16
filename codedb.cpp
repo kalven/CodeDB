@@ -44,19 +44,22 @@ int main(int argc, char** argv)
     {
         options opt = parse_cmdline(argc, argv);
 
-        std::cout << "mode: " << opt.m_mode << std::endl;
-        std::cout << "options: " << std::endl;
-        for(auto i = opt.m_options.begin(); i != opt.m_options.end(); ++i)
-            std::cout << "  " << i->first << " => \"" << i->second << "\"" << std::endl;
-        std::cout << "args: " << std::endl;
-        for(auto i = opt.m_args.begin(); i != opt.m_args.end(); ++i)
-            std::cout << "  " << *i << std::endl;
-        std::cout << "-----------------------------------" << std::endl;
+        // std::cout << "mode: " << opt.m_mode << std::endl;
+        // std::cout << "options: " << std::endl;
+        // for(auto i = opt.m_options.begin(); i != opt.m_options.end(); ++i)
+        //     std::cout << "  " << i->first << " => \"" << i->second << "\"" << std::endl;
+        // std::cout << "args: " << std::endl;
+        // for(auto i = opt.m_args.begin(); i != opt.m_args.end(); ++i)
+        //     std::cout << "  " << *i << std::endl;
+        // std::cout << "-----------------------------------" << std::endl;
 
         switch(opt.m_mode)
         {
             case options::init:
                 init();
+                break;
+            case options::config:
+                run_config(require_codedb_path(bfs::initial_path()), opt);
                 break;
             case options::build:
                 build(require_codedb_path(bfs::initial_path()));

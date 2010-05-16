@@ -2,6 +2,7 @@
 
 #include "build.hpp"
 #include "config.hpp"
+#include "options.hpp"
 
 #include <boost/filesystem/fstream.hpp>
 #include <boost/algorithm/string/trim.hpp>
@@ -62,13 +63,13 @@ namespace
         bfs::ofstream m_index;
     };
 
-    struct options
+    struct find_options
     {
         bxp::sregex m_file_inc_re;
         bxp::sregex m_dir_excl_re;
     };
 
-    void process_directory(builder& b, options& o, const bfs::path& path)
+    void process_directory(builder& b, find_options& o, const bfs::path& path)
     {
         if(!bfs::exists(path))
         {
@@ -99,8 +100,8 @@ void build(const bfs::path& cdb_path)
 
     bxp::regex_constants::syntax_option_type regex_options =
         bxp::regex_constants::ECMAScript|bxp::regex_constants::optimize;
-        
-    options opt;
+
+    find_options opt;
 
     opt.m_file_inc_re = bxp::sregex::compile(
         cfg.get_value("file-include"), regex_options);

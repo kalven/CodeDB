@@ -39,7 +39,7 @@ namespace
             ++begin;
         }
 
-        if(last_break != end)
+        if(last_break != end && count != 0)
             ++last_break;
         last_line = last_break;
 
@@ -65,21 +65,21 @@ namespace
             if(m_data == m_data_end)
                 return;
 
-            char  linebuf[20];
-            iovec buffers[3];
+            //char  linebuf[20];
+            // iovec buffers[3];
 
-            buffers[1].iov_base = linebuf;
+            // buffers[1].iov_base = linebuf;
 
             const char* file_start = m_data;
-            for(index_t::const_iterator i = m_index.begin(); i != m_index.end(); ++i)
+            for(std::size_t i = 0; i != m_index.size(); ++i)
             {
-                const std::string& file = i->second;
-                const char* file_end = m_data + i->first;
+                const std::string& file = m_index[i].second;
+                const char* file_end = m_data + m_index[i].first;
                 const char* search_start = file_start;
                 std::size_t line = 0;
 
-                buffers[0].iov_base = const_cast<char*>(file.c_str());
-                buffers[0].iov_len  = file.size();
+                // buffers[0].iov_base = const_cast<char*>(file.c_str());
+                // buffers[0].iov_len  = file.size();
 
                 if(regex_search(file.c_str(), file.c_str() + file.size(), file_what, file_re))
                 {
@@ -154,7 +154,7 @@ namespace
     };
 }
 
-void find(const boost::filesystem::path& cdb_path, const options& opt)
+void find(const bfs::path& cdb_path, const options& opt)
 {
     finder f(cdb_path / "blob", cdb_path / "index");
 
@@ -165,7 +165,8 @@ void find(const boost::filesystem::path& cdb_path, const options& opt)
     if(opt.m_options.count("-i"))
         regex_options = regex_options|bxp::regex_constants::icase;
 
-    std::string file_match(".*");
+    std::string file_match = "^" + escape_regex(bfs::initial_path().string()) + ".*";
+
     // if(vm.count("file-prefix"))
     //     file_match = "^" + escape_regex(vm["file-prefix"].as<std::string>()) + ".*";
     // else if(vm.count("file-regex"))

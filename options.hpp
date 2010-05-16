@@ -9,7 +9,7 @@
 
 struct options
 {
-    enum mode { help, init, add, build, find };
+    enum mode { help, init, config, build, find };
     
     mode                               m_mode;
     std::map<std::string, std::string> m_options;
