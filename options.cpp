@@ -53,6 +53,12 @@ options parse_cmdline(int argc, char** argv)
         auto i = args.begin()+1;
         for(;i != args.end() && i->at(0) == '-'; ++i)
         {
+            if(*i == "--")
+            {
+                ++i;
+                break;
+            }
+
             if(*i == "-a" || *i == "-i" || *i == "-v")
                 add_single(result.m_options, *i);
             if(*i == "-f")
