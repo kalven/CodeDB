@@ -8,6 +8,6 @@ alias bfs : : : :
 alias bpo : : : :
    <linkflags>"-lboost_program_options" ;
 
-exe finder : finder.cpp bpo ;
-exe builder : builder.cpp bpo bfs ;
+# exe finder : finder.cpp bpo ;
+# exe builder : builder.cpp bpo bfs ;
 exe cdb : codedb.cpp options.cpp config.cpp build.cpp find.cpp init.cpp bfs ;
