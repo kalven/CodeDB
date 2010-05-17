@@ -160,6 +160,12 @@ void find(const bfs::path& cdb_path, const options& opt)
     //     file_match = vm["file-regex"].as<std::string>();
 
     for(unsigned i = 0; i != opt.m_args.size(); ++i)
-        f.search(bxp::cregex::compile(opt.m_args[i].c_str(), regex_options),
+    {
+        std::string pattern = opt.m_args[i];
+        if(opt.m_options.count("-v"))
+            pattern = escape_regex(pattern);
+
+        f.search(bxp::cregex::compile(pattern, regex_options),
                  bxp::cregex::compile(file_match, regex_options));
+    }
 }
