@@ -65,11 +65,6 @@ namespace
             if(m_data == m_data_end)
                 return;
 
-            //char  linebuf[20];
-            // iovec buffers[3];
-
-            // buffers[1].iov_base = linebuf;
-
             const char* file_start = m_data;
             for(std::size_t i = 0; i != m_index.size(); ++i)
             {
@@ -77,9 +72,6 @@ namespace
                 const char* file_end = m_data + m_index[i].first;
                 const char* search_start = file_start;
                 std::size_t line = 0;
-
-                // buffers[0].iov_base = const_cast<char*>(file.c_str());
-                // buffers[0].iov_len  = file.size();
 
                 if(regex_search(file.c_str(), file.c_str() + file.size(), file_what, file_re))
                 {
@@ -91,13 +83,6 @@ namespace
                         const char* line_start;
                         line += count_lines(search_start, m_data + offset, line_start);
                         const char* line_end = std::strchr(line_start, 10) + 1;
-
-                        // buffers[1].iov_len = sprintf(linebuf, ":%d:", line+1);
-                        // buffers[1].iov_len = 5;
-                        // buffers[2].iov_base = const_cast<char*>(line_start);
-                        // buffers[2].iov_len = line_end - line_start;
-
-                        // writev(1, buffers, 3);
 
                         std::cout << file << ':' << (line+1) << ':';
                         std::cout.write(line_start, line_end - line_start);
@@ -165,7 +150,9 @@ void find(const bfs::path& cdb_path, const options& opt)
     if(opt.m_options.count("-i"))
         regex_options = regex_options|bxp::regex_constants::icase;
 
-    std::string file_match = "^" + escape_regex(bfs::initial_path().string()) + ".*";
+    std::string file_match;
+    if(opt.m_options.count("-a") == 0)
+        file_match = "^" + escape_regex(bfs::initial_path().string()) + ".*";
 
     // if(vm.count("file-prefix"))
     //     file_match = "^" + escape_regex(vm["file-prefix"].as<std::string>()) + ".*";
