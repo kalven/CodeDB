@@ -18,6 +18,7 @@ namespace
 options parse_cmdline(int argc, char** argv)
 {
     options result;
+
     std::deque<std::string> args(argv+1, argv+argc);
 
     if(args.empty() || args[0] == "-h" || args[0] == "--help" || args[0] == "help")
@@ -78,6 +79,11 @@ options parse_cmdline(int argc, char** argv)
         result.m_args.insert(result.m_args.end(), i, args.end());
         if(result.m_args.empty())
             throw std::runtime_error("find requires a query");
+    }
+    else
+    {
+        result.m_mode = options::undefined;
+        result.m_args.push_back(args[0]);
     }
 
     return result;

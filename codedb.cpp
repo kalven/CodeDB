@@ -5,6 +5,7 @@
 #include "build.hpp"
 #include "init.hpp"
 #include "find.hpp"
+#include "help.hpp"
 
 #include <boost/filesystem.hpp>
 
@@ -67,8 +68,15 @@ int main(int argc, char** argv)
             case options::find:
                 find(require_codedb_path(bfs::initial_path()), opt);
                 break;
+            case options::undefined:
+                std::cout << "cdb: '" << opt.m_args[0] << "' is not a cdb-command. See 'cdb --help'.\n";
+                break;
+            case options::help:
+                help(opt);
+                break;
             default:
-                std::cerr << "Not implemented" << std::endl;
+                std::cout << "Not implemented\n";
+                break;
         }
     }
     catch(const std::exception& e)
