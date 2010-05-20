@@ -22,6 +22,12 @@ namespace
             "file-include"
         }
     };
+
+    void validate_key(const std::string& key)
+    {
+        if(std::find(s_keys.begin(), s_keys.end(), key) == s_keys.end())
+            throw std::runtime_error("No config key named '" + key + "'");
+    }
 }
 
 void config::load(std::istream& in)
@@ -50,7 +56,7 @@ void config::save(std::ostream& out) const
 config config::default_config()
 {
     static const std::string config_str =
-        "dir-exclude=(\\.svn|\\.codedb)\n"
+        "dir-exclude=(\\.codedb|\\.git|\\.svn|_darcs)\n"
         "file-include=.*?\\.(hpp|cpp)\n";
 
     std::istringstream is(config_str);
@@ -66,6 +72,12 @@ std::string config::get_value(const std::string& key)
     if(i == m_cfg.end())
         return "";
     return i->second;
+}
+
+void config::set_value(const std::string& key, const std::string& value)
+{
+    validate_key(key);
+    m_cfg[key] = value;
 }
 
 void save_config(const config& c, const boost::filesystem::path& p)
@@ -92,22 +104,23 @@ void run_config(const boost::filesystem::path& cdb_path, const options& opt)
     for(unsigned i = 0; i != s_keys.size(); ++i)
         max_size = std::max(max_size, s_keys[i].size());
 
-    if(opt.m_args.empty())
+    switch(opt.m_args.size())
     {
-        for(unsigned i = 0; i != s_keys.size(); ++i)
-        {
-            std::cout << std::left << std::setw(max_size)
-                      << s_keys[i] << " = " << cfg.get_value(s_keys[i]) << std::endl;
-        }
-    }
-    if(opt.m_args.size() == 1)
-    {
-        if(std::find(s_keys.begin(), s_keys.end(), opt.m_args[0]) == s_keys.end())
-        {
-            std::cerr << "No config key named \"" << opt.m_args[0] << "\"\n";
-            return;
-        }
-
-        std::cout << opt.m_args[0] << " = " << cfg.get_value(opt.m_args[0]) << std::endl;
+        case 0:
+            for(unsigned i = 0; i != s_keys.size(); ++i)
+            {
+                std::cout << std::left << std::setw(max_size)
+                          << s_keys[i] << " = " << cfg.get_value(s_keys[i]) << std::endl;
+            }
+            break;
+        case 1:
+            validate_key(opt.m_args[0]);
+            std::cout << opt.m_args[0] << " = " << cfg.get_value(opt.m_args[0]) << std::endl;
+            break;
+        case 2:
+            cfg.set_value(opt.m_args[0], opt.m_args[1]);
+            save_config(cfg, cdb_path / "config");
+            std::cout << "Config updated" << std::endl;
+            break;
     }
 }
