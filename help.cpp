@@ -19,7 +19,9 @@ void help(const options& opt)
         return;
     }
 
-    if(opt.m_args[0] == "build")
+    const std::string& topic = opt.m_args[0];
+
+    if(topic == "build")
     {
         std::cout << "build: Build the code db index. Recursively indexes files that match\n"
                   << "the regular expression specified by the 'file-include' configuration.\n"
@@ -28,7 +30,7 @@ void help(const options& opt)
                   << "Valid options:\n"
                   << "  -v  : Verbose\n";
     }
-    else if(opt.m_args[0] == "find")
+    else if(topic == "find")
     {
         std::cout << "find: Search the code db. Only files found in and below the current\n"
                   << "working directory are considered by default.\n\n"
@@ -38,9 +40,16 @@ void help(const options& opt)
                   << "  -i : Case insensitive search\n"
                   << "  -a : Search the entire code db\n";
     }
-    else if(opt.m_args[0] == "init")
+    else if(topic == "init")
     {
-        std::cout << "init: Initialize a code db in the current directory\n\n"
+        std::cout << "init: Initialize a code db in the current directory.\n\n"
                   << "usage: cdb init\n\n";
+    }
+    else if(topic == "config")
+    {
+        std::cout << "config: Get and set code db options.\n\n"
+                  << "usage: cdb config             : show all config keys\n"
+                  << "usage: cdb config KEY         : show configuration for KEY\n"
+                  << "usage: cdb config KEY VALUE   : update KEY to a new VALUE\n";
     }
 }
