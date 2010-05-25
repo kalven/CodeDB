@@ -1,6 +1,7 @@
 // CodeDB - public domain - 2010 Daniel Andersson
 
 #include "build.hpp"
+#include "regex.hpp"
 #include "config.hpp"
 #include "options.hpp"
 
@@ -103,9 +104,9 @@ void build(const bfs::path& cdb_path)
 
     find_options opt;
 
-    opt.m_file_inc_re = bxp::sregex::compile(
+    opt.m_file_inc_re = compile_sregex(
         cfg.get_value("file-include"), regex_options);
-    opt.m_dir_excl_re = bxp::sregex::compile(
+    opt.m_dir_excl_re = compile_sregex(
         cfg.get_value("dir-exclude"), regex_options);
 
     builder b(cdb_path / "blob", cdb_path / "index");

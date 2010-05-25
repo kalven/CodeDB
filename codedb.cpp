@@ -3,17 +3,21 @@
 #include "options.hpp"
 #include "config.hpp"
 #include "build.hpp"
+#include "regex.hpp"
 #include "init.hpp"
 #include "find.hpp"
 #include "help.hpp"
 
 #include <boost/filesystem.hpp>
+#include <boost/xpressive/regex_error.hpp>
 
-#include <string>
-#include <fstream>
 #include <iostream>
+#include <fstream>
+#include <string>
+#include <cctype>
 
 namespace bfs = boost::filesystem;
+namespace bxp = boost::xpressive;
 
 bfs::path make_absolute(const std::string& path_str)
 {
@@ -69,6 +73,17 @@ int main(int argc, char** argv)
                 std::cout << "Not implemented '" << opt.m_args.at(0) << "'\n";
                 break;
         }
+    }
+    catch(const bxp::regex_error& error)
+    {
+        std::string desc = error.what();
+        if(!desc.empty())
+            desc[0] = std::toupper(desc[0]);
+
+        std::cerr << "Error: invalid regex";
+        if(const std::string* re = boost::get_error_info<errinfo_regex_string>(error))
+            std::cerr << " '" << *re << "'";
+        std::cerr << "\n  " << desc << std::endl;
     }
     catch(const std::exception& e)
     {

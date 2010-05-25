@@ -2,6 +2,7 @@
 
 #include "config.hpp"
 #include "options.hpp"
+#include "regex.hpp"
 
 #include <boost/array.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -10,23 +11,44 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
+#include <cctype>
 
 namespace bxp = boost::xpressive;
 
 namespace
 {
-    const boost::array<std::string, 2> s_keys =
+    struct cfg_key
+    {
+        enum type
+        {
+            regex
+        };
+
+        std::string m_name;
+        type        m_type;
+    };
+    
+    const boost::array<cfg_key, 2> s_keys =
     {
         {
-            "dir-exclude",
-            "file-include"
+            { "dir-exclude", cfg_key::regex },
+            { "file-include", cfg_key::regex }
         }
     };
 
-    void validate_key(const std::string& key)
+    const cfg_key& require_key(const std::string& name)
     {
-        if(std::find(s_keys.begin(), s_keys.end(), key) == s_keys.end())
-            throw std::runtime_error("No config key named '" + key + "'");
+        for(auto i = s_keys.begin(); i != s_keys.end(); ++i)
+            if(i->m_name == name)
+                return *i;
+        throw std::runtime_error("No config key named '" + name + "'");
+    }
+
+    void validate_value(const cfg_key& k, const std::string& value)
+    {
+        if(k.m_type == cfg_key::regex)
+            // compile_regex will throw if the regex is invalid
+            compile_sregex(value, bxp::regex_constants::ECMAScript);
     }
 }
 
@@ -68,16 +90,18 @@ config config::default_config()
 
 std::string config::get_value(const std::string& key)
 {
+    require_key(key);
+
     auto i = m_cfg.find(key);
     if(i == m_cfg.end())
         return "";
     return i->second;
 }
 
-void config::set_value(const std::string& key, const std::string& value)
+void config::set_value(const std::string& name, const std::string& value)
 {
-    validate_key(key);
-    m_cfg[key] = value;
+    validate_value(require_key(name), value);
+    m_cfg[name] = value;
 }
 
 void save_config(const config& c, const boost::filesystem::path& p)
@@ -100,23 +124,27 @@ void run_config(const boost::filesystem::path& cdb_path, const options& opt)
 {
     config cfg = load_config(cdb_path / "config");
 
-    std::size_t max_size = 0;
-    for(unsigned i = 0; i != s_keys.size(); ++i)
-        max_size = std::max(max_size, s_keys[i].size());
-
     switch(opt.m_args.size())
     {
         case 0:
-            for(unsigned i = 0; i != s_keys.size(); ++i)
+        {
+            std::size_t max_size = 0;
+            for(auto i = s_keys.begin(); i != s_keys.end(); ++i)
+                max_size = std::max(max_size, i->m_name.size());
+
+            for(auto i = s_keys.begin(); i != s_keys.end(); ++i)
             {
                 std::cout << std::left << std::setw(max_size)
-                          << s_keys[i] << " = " << cfg.get_value(s_keys[i]) << std::endl;
+                          << i->m_name << " = " << cfg.get_value(i->m_name) << std::endl;
             }
             break;
+        }
         case 1:
-            validate_key(opt.m_args[0]);
-            std::cout << opt.m_args[0] << " = " << cfg.get_value(opt.m_args[0]) << std::endl;
+        {
+            std::string value = cfg.get_value(opt.m_args[0]);
+            std::cout << opt.m_args[0] << " = " << value << std::endl;
             break;
+        }
         case 2:
             cfg.set_value(opt.m_args[0], opt.m_args[1]);
             save_config(cfg, cdb_path / "config");

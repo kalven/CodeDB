@@ -2,6 +2,7 @@
 
 #include "find.hpp"
 #include "options.hpp"
+#include "regex.hpp"
 
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
@@ -165,7 +166,7 @@ void find(const bfs::path& cdb_path, const options& opt)
         if(opt.m_options.count("-v"))
             pattern = escape_regex(pattern);
 
-        f.search(bxp::cregex::compile(pattern, regex_options),
-                 bxp::cregex::compile(file_match, regex_options));
+        f.search(compile_cregex(pattern, regex_options),
+                 compile_cregex(file_match, regex_options));
     }
 }
