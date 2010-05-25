@@ -45,15 +45,6 @@ int main(int argc, char** argv)
     {
         options opt = parse_cmdline(argc, argv);
 
-        // std::cout << "mode: " << opt.m_mode << std::endl;
-        // std::cout << "options: " << std::endl;
-        // for(auto i = opt.m_options.begin(); i != opt.m_options.end(); ++i)
-        //     std::cout << "  " << i->first << " => \"" << i->second << "\"" << std::endl;
-        // std::cout << "args: " << std::endl;
-        // for(auto i = opt.m_args.begin(); i != opt.m_args.end(); ++i)
-        //     std::cout << "  " << *i << std::endl;
-        // std::cout << "-----------------------------------" << std::endl;
-
         switch(opt.m_mode)
         {
             case options::init:
@@ -75,7 +66,7 @@ int main(int argc, char** argv)
                 help(opt);
                 break;
             default:
-                std::cout << "Not implemented\n";
+                std::cout << "Not implemented '" << opt.m_args.at(0) << "'\n";
                 break;
         }
     }
