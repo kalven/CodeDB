@@ -58,7 +58,7 @@ int main(int argc, char** argv)
                 run_config(require_codedb_path(bfs::initial_path()), opt);
                 break;
             case options::build:
-                build(require_codedb_path(bfs::initial_path()));
+                build(require_codedb_path(bfs::initial_path()), opt);
                 break;
             case options::find:
                 find(require_codedb_path(bfs::initial_path()), opt);

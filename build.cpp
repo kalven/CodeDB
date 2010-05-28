@@ -64,13 +64,14 @@ namespace
         bfs::ofstream m_index;
     };
 
-    struct find_options
+    struct build_options
     {
         bxp::sregex m_file_inc_re;
         bxp::sregex m_dir_excl_re;
+        bool        m_verbose;
     };
 
-    void process_directory(builder& b, find_options& o, const bfs::path& path)
+    void process_directory(builder& b, build_options& o, const bfs::path& path)
     {
         if(!bfs::exists(path))
         {
@@ -89,26 +90,32 @@ namespace
             else
             {
                 if(regex_match(f.filename(), o.m_file_inc_re))
+                {
                     b.process_file(f.file_string());
+                    if(o.m_verbose)
+                        std::cout << f << std::endl;
+                }
             }
         }
     }
 }
 
-void build(const bfs::path& cdb_path)
+void build(const bfs::path& cdb_path, const options& opt)
 {
     config cfg = load_config(cdb_path / "config");
 
     bxp::regex_constants::syntax_option_type regex_options =
         bxp::regex_constants::ECMAScript|bxp::regex_constants::optimize;
 
-    find_options opt;
+    build_options bo;
 
-    opt.m_file_inc_re = compile_sregex(
+    bo.m_file_inc_re = compile_sregex(
         cfg.get_value("file-include"), regex_options);
-    opt.m_dir_excl_re = compile_sregex(
+    bo.m_dir_excl_re = compile_sregex(
         cfg.get_value("dir-exclude"), regex_options);
 
+    bo.m_verbose = opt.m_options.count("-v") == 1;
+
     builder b(cdb_path / "blob", cdb_path / "index");
-    process_directory(b, opt, cdb_path.parent_path());
+    process_directory(b, bo, cdb_path.parent_path());
 }

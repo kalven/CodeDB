@@ -38,7 +38,15 @@ options parse_cmdline(int argc, char** argv)
     else if(args[0] == "build")
     {
         result.m_mode = options::build;
-        if(args.size() > 1)
+        auto i = args.begin()+1;
+        for(;i != args.end() && i->at(0) == '-'; ++i)
+        {
+            if(*i == "-v")
+                add_single(result.m_options, "-v");
+            else
+                throw std::runtime_error("Invalid argument");
+        }
+        if(i != args.end())
             throw std::runtime_error("Invalid argument");
     }
     else if(args[0] == "config")

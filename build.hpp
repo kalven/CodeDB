@@ -5,6 +5,8 @@
 
 #include <boost/filesystem.hpp>
 
-void build(const boost::filesystem::path& cdb_path);
+struct options;
+
+void build(const boost::filesystem::path& cdb_path, const options& opt);
 
 #endif
