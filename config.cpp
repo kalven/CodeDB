@@ -4,7 +4,6 @@
 #include "options.hpp"
 #include "regex.hpp"
 
-#include <boost/array.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/xpressive/xpressive_dynamic.hpp>
 
@@ -12,43 +11,57 @@
 #include <sstream>
 #include <iomanip>
 #include <cctype>
+#include <map>
 
 namespace bxp = boost::xpressive;
 
 namespace
 {
+    // The value validators throw an exception if the parameter
+    // doesn't fall into the range of allowed values.
+
+    void validate_regex(const std::string& value)
+    {
+        compile_sregex(value, bxp::regex_constants::ECMAScript);
+    }
+
     struct cfg_key
     {
-        enum type
-        {
-            regex
-        };
+        typedef void (*validator)(const std::string&);
 
-        std::string m_name;
-        type        m_type;
+        cfg_key(const std::string& def, validator val)
+          : m_default(def)
+          , m_validator(val)
+        {
+        }
+
+        std::string m_default;
+        validator   m_validator;
     };
     
-    const boost::array<cfg_key, 2> s_keys =
+    typedef std::map<std::string, cfg_key> config_keys;
+
+    const config_keys& get_config_map()
     {
+        static config_keys keys;
+        if(keys.empty())
         {
-            { "dir-exclude", cfg_key::regex },
-            { "file-include", cfg_key::regex }
+            keys.insert(std::make_pair("dir-exclude", cfg_key("(\\.codedb|\\.git|\\.svn|_darcs)", &validate_regex)));
+            keys.insert(std::make_pair("file-include", cfg_key(".*?\\.(hpp|cpp)", &validate_regex)));
         }
-    };
+
+        return keys;
+    }
 
     const cfg_key& require_key(const std::string& name)
     {
-        for(auto i = s_keys.begin(); i != s_keys.end(); ++i)
-            if(i->m_name == name)
-                return *i;
-        throw std::runtime_error("No config key named '" + name + "'");
-    }
+        const config_keys& keys = get_config_map();
 
-    void validate_value(const cfg_key& k, const std::string& value)
-    {
-        if(k.m_type == cfg_key::regex)
-            // compile_regex will throw if the regex is invalid
-            compile_sregex(value, bxp::regex_constants::ECMAScript);
+        auto i = keys.find(name);
+        if(i == keys.end())
+            throw std::runtime_error("No config key named '" + name + "'");
+
+        return i->second;
     }
 }
 
@@ -77,13 +90,11 @@ void config::save(std::ostream& out) const
 
 config config::default_config()
 {
-    static const std::string config_str =
-        "dir-exclude=(\\.codedb|\\.git|\\.svn|_darcs)\n"
-        "file-include=.*?\\.(hpp|cpp)\n";
-
-    std::istringstream is(config_str);
     config c;
-    c.load(is);
+
+    const config_keys& keys = get_config_map();
+    for(auto i = keys.begin(); i != keys.end(); ++i)
+        c.m_cfg.insert(std::make_pair(i->first, i->second.m_default));
 
     return c;
 }
@@ -100,7 +111,7 @@ std::string config::get_value(const std::string& key)
 
 void config::set_value(const std::string& name, const std::string& value)
 {
-    validate_value(require_key(name), value);
+    require_key(name).m_validator(value);
     m_cfg[name] = value;
 }
 
@@ -129,13 +140,15 @@ void run_config(const boost::filesystem::path& cdb_path, const options& opt)
         case 0:
         {
             std::size_t max_size = 0;
-            for(auto i = s_keys.begin(); i != s_keys.end(); ++i)
-                max_size = std::max(max_size, i->m_name.size());
+            const config_keys& keys = get_config_map();
 
-            for(auto i = s_keys.begin(); i != s_keys.end(); ++i)
+            for(auto i = keys.begin(); i != keys.end(); ++i)
+                max_size = std::max(max_size, i->first.size());
+
+            for(auto i = keys.begin(); i != keys.end(); ++i)
             {
                 std::cout << std::left << std::setw(max_size)
-                          << i->m_name << " = " << cfg.get_value(i->m_name) << std::endl;
+                          << i->first << " = " << cfg.get_value(i->first) << std::endl;
             }
             break;
         }
