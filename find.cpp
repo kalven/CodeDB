@@ -3,6 +3,7 @@
 #include "find.hpp"
 #include "options.hpp"
 #include "regex.hpp"
+#include "config.hpp"
 
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
@@ -18,6 +19,11 @@ namespace bxp = boost::xpressive;
 
 namespace
 {
+    const bxp::regex_constants::syntax_option_type default_regex_options =
+        bxp::regex_constants::ECMAScript|
+        bxp::regex_constants::not_dot_newline|
+        bxp::regex_constants::optimize;
+
     std::string escape_regex(std::string text)
     {
         static const bxp::sregex escape_re =
@@ -142,23 +148,20 @@ namespace
 
 void find(const bfs::path& cdb_path, const options& opt)
 {
+    config cfg = load_config(cdb_path / "config");
     finder f(cdb_path / "blob", cdb_path / "index");
 
-    bxp::regex_constants::syntax_option_type regex_options =
-        bxp::regex_constants::ECMAScript|
-        bxp::regex_constants::not_dot_newline|
-        bxp::regex_constants::optimize;
+    bxp::regex_constants::syntax_option_type find_regex_options = default_regex_options;
+    bxp::regex_constants::syntax_option_type file_regex_options = default_regex_options;
+
     if(opt.m_options.count("-i"))
-        regex_options = regex_options|bxp::regex_constants::icase;
+        find_regex_options = find_regex_options|bxp::regex_constants::icase;
+    if(cfg.get_value("nocase-file-match") == "on")
+        file_regex_options = file_regex_options|bxp::regex_constants::icase;
 
     std::string file_match;
     if(opt.m_options.count("-a") == 0)
         file_match = "^" + escape_regex(bfs::initial_path().string()) + ".*";
-
-    // if(vm.count("file-prefix"))
-    //     file_match = "^" + escape_regex(vm["file-prefix"].as<std::string>()) + ".*";
-    // else if(vm.count("file-regex"))
-    //     file_match = vm["file-regex"].as<std::string>();
 
     for(unsigned i = 0; i != opt.m_args.size(); ++i)
     {
@@ -166,7 +169,7 @@ void find(const bfs::path& cdb_path, const options& opt)
         if(opt.m_options.count("-v"))
             pattern = escape_regex(pattern);
 
-        f.search(compile_cregex(pattern, regex_options),
-                 compile_cregex(file_match, regex_options));
+        f.search(compile_cregex(pattern, find_regex_options),
+                 compile_cregex(file_match, file_regex_options));
     }
 }

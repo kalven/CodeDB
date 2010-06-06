@@ -8,6 +8,7 @@
 #include <boost/xpressive/xpressive_dynamic.hpp>
 
 #include <algorithm>
+#include <stdexcept>
 #include <sstream>
 #include <iomanip>
 #include <cctype>
@@ -23,6 +24,12 @@ namespace
     void validate_regex(const std::string& value)
     {
         compile_sregex(value, bxp::regex_constants::ECMAScript);
+    }
+
+    void validate_bool(const std::string& value)
+    {
+        if(value != "on" && value != "off")
+            throw std::logic_error("'" + value + "' is not a valid boolean, expected 'on' or 'off'");
     }
 
     struct cfg_key
@@ -48,6 +55,7 @@ namespace
         {
             keys.insert(std::make_pair("dir-exclude", cfg_key("(\\.codedb|\\.git|\\.svn|_darcs)", &validate_regex)));
             keys.insert(std::make_pair("file-include", cfg_key(".*?\\.(hpp|cpp)", &validate_regex)));
+            keys.insert(std::make_pair("nocase-file-match", cfg_key("off", &validate_bool)));
         }
 
         return keys;
