@@ -32,7 +32,7 @@ namespace
 
         // Index format: byte_size:path
 
-        void process_file(const bfs::path& path)
+        void process_file(const bfs::path& path, std::size_t root_chars)
         {
             bfs::ifstream input(path);
             if(!input.is_open())
@@ -50,7 +50,7 @@ namespace
                 m_packed.write(line.c_str(), line.size());
             }
 
-            m_index << bytes << ':' << path << '\n';
+            m_index << bytes << ':' << path.string().substr(root_chars) << '\n';
         }
 
       private:
@@ -71,12 +71,14 @@ namespace
         bool        m_verbose;
     };
 
-    void process_directory(builder& b, build_options& o, const bfs::path& path)
+    void process_directory(builder& b, build_options& o, const bfs::path& root)
     {
-        if(!bfs::exists(path))
-            throw std::runtime_error(path.string() + " does not exist");
+        if(!bfs::exists(root))
+            throw std::runtime_error(root.string() + " does not exist");
 
-        for(bfs::recursive_directory_iterator i(path), end; i != end; ++i)
+        std::size_t root_size = root.string().size() + 1;
+
+        for(bfs::recursive_directory_iterator i(root), end; i != end; ++i)
         {
             const bfs::path& f = *i;
             if(bfs::is_directory(f) && regex_match(f.filename(), o.m_dir_excl_re))
@@ -87,7 +89,7 @@ namespace
 
             if(regex_match(f.filename(), o.m_file_inc_re))
             {
-                b.process_file(f.file_string());
+                b.process_file(f, root_size);
                 if(o.m_verbose)
                     std::cout << f << std::endl;
             }

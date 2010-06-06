@@ -159,9 +159,15 @@ void find(const bfs::path& cdb_path, const options& opt)
     if(cfg.get_value("nocase-file-match") == "on")
         file_regex_options = file_regex_options|bxp::regex_constants::icase;
 
+    const bfs::path cdb_root = cdb_path.parent_path();
+    const bfs::path search_root = bfs::initial_path();
+
     std::string file_match;
-    if(opt.m_options.count("-a") == 0)
-        file_match = "^" + escape_regex(bfs::initial_path().string()) + ".*";
+    if(opt.m_options.count("-a") == 0 && search_root != cdb_root)
+    {
+        file_match = "^" + escape_regex(
+            search_root.string().substr(cdb_root.string().size() + 1)) + ".*";
+    }
 
     for(unsigned i = 0; i != opt.m_args.size(); ++i)
     {
