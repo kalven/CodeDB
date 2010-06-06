@@ -99,13 +99,13 @@ config config::default_config()
     return c;
 }
 
-std::string config::get_value(const std::string& key)
+std::string config::get_value(const std::string& name)
 {
-    require_key(key);
+    const cfg_key& key = require_key(name);
 
-    auto i = m_cfg.find(key);
+    auto i = m_cfg.find(name);
     if(i == m_cfg.end())
-        return "";
+        return key.m_default;
     return i->second;
 }
 
