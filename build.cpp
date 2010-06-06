@@ -74,27 +74,22 @@ namespace
     void process_directory(builder& b, build_options& o, const bfs::path& path)
     {
         if(!bfs::exists(path))
-        {
-            std::cerr << path << " does not exist" << std::endl;
-            return;
-        }
+            throw std::runtime_error(path.string() + " does not exist");
 
-        for(bfs::directory_iterator i(path), end; i != end; ++i)
+        for(bfs::recursive_directory_iterator i(path), end; i != end; ++i)
         {
             const bfs::path& f = *i;
-            if(bfs::is_directory(f))
+            if(bfs::is_directory(f) && regex_match(f.filename(), o.m_dir_excl_re))
             {
-                if(!regex_match(f.filename(), o.m_dir_excl_re))
-                    process_directory(b, o, f);
+                i.no_push();
+                continue;
             }
-            else
+
+            if(regex_match(f.filename(), o.m_file_inc_re))
             {
-                if(regex_match(f.filename(), o.m_file_inc_re))
-                {
-                    b.process_file(f.file_string());
-                    if(o.m_verbose)
-                        std::cout << f << std::endl;
-                }
+                b.process_file(f.file_string());
+                if(o.m_verbose)
+                    std::cout << f << std::endl;
             }
         }
     }
