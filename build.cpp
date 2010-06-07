@@ -32,7 +32,7 @@ namespace
 
         // Index format: byte_size:path
 
-        void process_file(const bfs::path& path, std::size_t root_chars)
+        void process_file(const bfs::path& path, std::size_t prefix_size)
         {
             bfs::ifstream input(path);
             if(!input.is_open())
@@ -50,7 +50,7 @@ namespace
                 m_packed.write(line.c_str(), line.size());
             }
 
-            m_index << bytes << ':' << path.string().substr(root_chars) << '\n';
+            m_index << bytes << ':' << path.string().substr(prefix_size) << '\n';
         }
 
       private:
@@ -76,7 +76,7 @@ namespace
         if(!bfs::exists(root))
             throw std::runtime_error(root.string() + " does not exist");
 
-        std::size_t root_size = root.string().size() + 1;
+        std::size_t prefix_size = root.string().size() + 1;
 
         for(bfs::recursive_directory_iterator i(root), end; i != end; ++i)
         {
@@ -89,7 +89,7 @@ namespace
 
             if(regex_match(f.filename(), o.m_file_inc_re))
             {
-                b.process_file(f, root_size);
+                b.process_file(f, prefix_size);
                 if(o.m_verbose)
                     std::cout << f << std::endl;
             }

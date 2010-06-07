@@ -65,7 +65,7 @@ namespace
             load_index(index);
         }
 
-        void search(const bxp::cregex& re, const bxp::cregex& file_re)
+        void search(std::size_t prefix_size, const bxp::cregex& re, const bxp::cregex& file_re)
         {
             bxp::cmatch what, file_what;
 
@@ -91,7 +91,7 @@ namespace
                         line += count_lines(search_start, m_data + offset, line_start);
                         const char* line_end = std::strchr(line_start, 10) + 1;
 
-                        std::cout << file << ':' << (line+1) << ':';
+                        std::cout << (file.c_str() + prefix_size) << ':' << (line+1) << ':';
                         std::cout.write(line_start, line_end - line_start);
 
                         search_start = line_end;
@@ -162,11 +162,13 @@ void find(const bfs::path& cdb_path, const options& opt)
     const bfs::path cdb_root = cdb_path.parent_path();
     const bfs::path search_root = bfs::initial_path();
 
+    std::size_t prefix_size = 0;
     std::string file_match;
     if(opt.m_options.count("-a") == 0 && search_root != cdb_root)
     {
         file_match = "^" + escape_regex(
             search_root.string().substr(cdb_root.string().size() + 1)) + ".*";
+        prefix_size = search_root.string().size() - cdb_root.string().size();
     }
 
     for(unsigned i = 0; i != opt.m_args.size(); ++i)
@@ -175,7 +177,9 @@ void find(const bfs::path& cdb_path, const options& opt)
         if(opt.m_options.count("-v"))
             pattern = escape_regex(pattern);
 
-        f.search(compile_cregex(pattern, find_regex_options),
+        f.search(prefix_size,
+                 compile_cregex(pattern, find_regex_options),
                  compile_cregex(file_match, file_regex_options));
     }
 }
+
