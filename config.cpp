@@ -53,8 +53,8 @@ namespace
         static config_keys keys;
         if(keys.empty())
         {
-            keys.insert(std::make_pair("dir-exclude", cfg_key("(\\.codedb|\\.git|\\.svn|_darcs)", &validate_regex)));
-            keys.insert(std::make_pair("file-include", cfg_key(".*?\\.(hpp|cpp)", &validate_regex)));
+            keys.insert(std::make_pair("dir-exclude", cfg_key("(\\.codedb|\\.git|\\.svn|\\.hg|_darcs)", &validate_regex)));
+            keys.insert(std::make_pair("file-include", cfg_key(".*?\\.(h|hpp|inl|c|cpp)", &validate_regex)));
             keys.insert(std::make_pair("nocase-file-match", cfg_key("off", &validate_bool)));
         }
 
