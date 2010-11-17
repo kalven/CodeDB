@@ -81,13 +81,15 @@ namespace
         for(bfs::recursive_directory_iterator i(root), end; i != end; ++i)
         {
             const bfs::path& f = *i;
-            if(bfs::is_directory(f) && regex_match(f.filename(), o.m_dir_excl_re))
+            const bool is_dir = bfs::is_directory(f);
+
+            if(is_dir && regex_match(f.filename(), o.m_dir_excl_re))
             {
                 i.no_push();
                 continue;
             }
 
-            if(regex_match(f.filename(), o.m_file_inc_re))
+            if(!is_dir && regex_match(f.filename(), o.m_file_inc_re))
             {
                 b.process_file(f, prefix_size);
                 if(o.m_verbose)
