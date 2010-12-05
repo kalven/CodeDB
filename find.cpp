@@ -53,6 +53,36 @@ namespace
         return count;
     }
 
+    struct match_info
+    {
+        const char* m_file;
+        const char* m_full_file;
+        const char* m_file_start;
+        const char* m_file_end;
+        const char* m_line_start;
+        const char* m_line_end;
+        const char* m_position;
+        std::size_t m_line;
+    };
+
+    class match_receiver
+    {
+      public:
+        virtual ~match_receiver() {}
+        virtual const char* on_match(const match_info&) = 0;
+    };
+
+    class default_receiver : public match_receiver
+    {
+        const char* on_match(const match_info& match)
+        {
+            std::cout << match.m_file << ':' << match.m_line << ':';
+            std::cout.write(match.m_line_start, match.m_line_end - match.m_line_start);
+
+            return match.m_line_end;
+        }
+    };
+
     class finder
     {
       public:
@@ -65,12 +95,14 @@ namespace
             load_index(index);
         }
 
-        void search(std::size_t prefix_size, const bxp::cregex& re, const bxp::cregex& file_re)
+        void search(std::size_t prefix_size, const bxp::cregex& re, const bxp::cregex& file_re, match_receiver& receiver)
         {
             bxp::cmatch what, file_what;
 
             if(m_data == m_data_end)
                 return;
+
+            match_info minfo;
 
             const char* file_start = m_data;
             for(std::size_t i = 0; i != m_index.size(); ++i)
@@ -78,7 +110,12 @@ namespace
                 const std::string& file = m_index[i].second;
                 const char* file_end = m_data + m_index[i].first;
                 const char* search_start = file_start;
-                std::size_t line = 0;
+
+                minfo.m_full_file  = m_index[i].second.c_str();
+                minfo.m_file       = minfo.m_full_file + prefix_size;
+                minfo.m_file_start = file_start;
+                minfo.m_file_end   = file_end;
+                minfo.m_line       = 1;
 
                 if(regex_search(file.c_str(), file.c_str() + file.size(), file_what, file_re))
                 {
@@ -87,15 +124,12 @@ namespace
                         std::size_t offset = (search_start - m_data) +
                             static_cast<std::size_t>(what.position());
 
-                        const char* line_start;
-                        line += count_lines(search_start, m_data + offset, line_start);
-                        const char* line_end = std::strchr(line_start, 10) + 1;
+                        minfo.m_line += count_lines(search_start, m_data + offset, minfo.m_line_start);
+                        minfo.m_line_end = std::strchr(minfo.m_line_start, 10) + 1;
+                        minfo.m_position = m_data + offset;
 
-                        std::cout << (file.c_str() + prefix_size) << ':' << (line+1) << ':';
-                        std::cout.write(line_start, line_end - line_start);
-
-                        search_start = line_end;
-                        line++;
+                        search_start = receiver.on_match(minfo);
+                        minfo.m_line++;
 
                         if(search_start >= file_end)
                             break;
@@ -172,6 +206,8 @@ void find(const bfs::path& cdb_path, const options& opt)
         prefix_size = search_root.string().size() - cdb_root.string().size();
     }
 
+    default_receiver receiver;
+
     for(unsigned i = 0; i != opt.m_args.size(); ++i)
     {
         std::string pattern = opt.m_args[i];
@@ -180,7 +216,8 @@ void find(const bfs::path& cdb_path, const options& opt)
 
         f.search(prefix_size,
                  compile_cregex(pattern, find_regex_options),
-                 compile_cregex(file_match, file_regex_options));
+                 compile_cregex(file_match, file_regex_options),
+                 receiver);
     }
 }
 
