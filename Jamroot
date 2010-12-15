@@ -8,4 +8,4 @@ alias bfs : : : :
 alias bpo : : : :
    <linkflags>"-lboost_program_options" ;
 
-exe cdb : codedb.cpp options.cpp config.cpp build.cpp find.cpp init.cpp help.cpp regex.cpp bfs ;
+exe cdb : codedb.cpp options.cpp config.cpp build.cpp find.cpp init.cpp help.cpp regex.cpp file_lock.cpp bfs ;

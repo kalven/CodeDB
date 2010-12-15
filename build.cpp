@@ -4,7 +4,10 @@
 #include "regex.hpp"
 #include "config.hpp"
 #include "options.hpp"
+#include "file_lock.hpp"
 
+#include <boost/interprocess/sync/file_lock.hpp>
+#include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/xpressive/xpressive_dynamic.hpp>
@@ -21,7 +24,7 @@ namespace
     {
       public:
         builder(const bfs::path& packed, const bfs::path& index)
-          : m_packed(packed, std::ofstream::binary)
+          : m_packed(packed, bfs::ofstream::binary)
           , m_index(index)
         {
             if(!m_packed.is_open())
@@ -114,6 +117,9 @@ void build(const bfs::path& cdb_path, const options& opt)
         cfg.get_value("dir-exclude"), regex_options);
 
     bo.m_verbose = opt.m_options.count("-v") == 1;
+
+    file_lock lock(cdb_path / "lock");
+    lock.lock_exclusive();
 
     builder b(cdb_path / "blob", cdb_path / "index");
     process_directory(b, bo, cdb_path.parent_path());

@@ -8,7 +8,7 @@
 #include <string>
 #include <map>
 
-#include <boost/filesystem.hpp>
+#include <boost/filesystem/path.hpp>
 
 struct options;
 

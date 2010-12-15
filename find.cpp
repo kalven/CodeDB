@@ -4,6 +4,7 @@
 #include "options.hpp"
 #include "regex.hpp"
 #include "config.hpp"
+#include "file_lock.hpp"
 
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
@@ -208,6 +209,9 @@ void find(const bfs::path& cdb_path, const options& opt)
 
     default_receiver receiver;
 
+    file_lock lock(cdb_path / "lock");
+    lock.lock_sharable();
+
     for(unsigned i = 0; i != opt.m_args.size(); ++i)
     {
         std::string pattern = opt.m_args[i];
@@ -220,4 +224,3 @@ void find(const bfs::path& cdb_path, const options& opt)
                  receiver);
     }
 }
-
