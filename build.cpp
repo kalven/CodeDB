@@ -23,9 +23,10 @@ namespace
     class builder
     {
       public:
-        builder(const bfs::path& packed, const bfs::path& index)
+        builder(const bfs::path& packed, const bfs::path& index, bool trim)
           : m_packed(packed, bfs::ofstream::binary)
           , m_index(index)
+          , m_trim(trim)
         {
             if(!m_packed.is_open())
                 throw std::runtime_error("Unable to open " + packed.string() + " for writing");
@@ -60,11 +61,13 @@ namespace
 
         void process_input_line(std::string& line)
         {
-            boost::algorithm::trim(line);
+            if(m_trim)
+                boost::algorithm::trim(line);
         }
 
         bfs::ofstream m_packed;
         bfs::ofstream m_index;
+        bool          m_trim;
     };
 
     struct build_options
@@ -121,6 +124,6 @@ void build(const bfs::path& cdb_path, const options& opt)
     file_lock lock(cdb_path / "lock");
     lock.lock_exclusive();
 
-    builder b(cdb_path / "blob", cdb_path / "index");
+    builder b(cdb_path / "blob", cdb_path / "index", cfg.get_value("build-trim-ws") == "on");
     process_directory(b, bo, cdb_path.parent_path());
 }

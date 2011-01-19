@@ -32,13 +32,30 @@ namespace
 
     class default_receiver : public match_receiver
     {
+      public:
+        default_receiver(bool trim)
+          : m_trim(trim)
+        {
+        }
+
+      private:
+
         const char* on_match(const match_info& match)
         {
+            const char* line_start = match.m_line_start;
+            if(m_trim)
+            {
+                while(*line_start == ' ' || *line_start == '\t')
+                    ++line_start;
+            }
+
             std::cout << match.m_file << ':' << match.m_line << ':';
-            std::cout.write(match.m_line_start, match.m_line_end - match.m_line_start);
+            std::cout.write(line_start, match.m_line_end - line_start);
 
             return match.m_line_end;
         }
+
+        bool m_trim;
     };
 }
 
@@ -68,7 +85,7 @@ void find(const bfs::path& cdb_path, const options& opt)
         prefix_size = search_root.string().size() - cdb_root.string().size();
     }
 
-    default_receiver receiver;
+    default_receiver receiver(cfg.get_value("find-trim-ws") == "on");
 
     file_lock lock(cdb_path / "lock");
     lock.lock_sharable();

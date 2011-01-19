@@ -56,6 +56,8 @@ namespace
             keys.insert(std::make_pair("dir-exclude", cfg_key("(\\.codedb|\\.git|\\.svn|\\.hg|_darcs)", &validate_regex)));
             keys.insert(std::make_pair("file-include", cfg_key(".*?\\.(h|hpp|inl|c|cpp)", &validate_regex)));
             keys.insert(std::make_pair("nocase-file-match", cfg_key("off", &validate_bool)));
+            keys.insert(std::make_pair("build-trim-ws", cfg_key("on", &validate_bool)));
+            keys.insert(std::make_pair("find-trim-ws", cfg_key("off", &validate_bool)));
         }
 
         return keys;
