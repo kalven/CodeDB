@@ -50,14 +50,8 @@ namespace
                     ++line_start;
             }
 
-            // std::cout << match.m_file << ':' << match.m_line << ':';
-            // std::cout.write(line_start, match.m_line_end - line_start);
-            std::cout << (match.m_line_end - match.m_line_start) << std::endl;
-
-            if(match.m_line_end > match.m_file_end)
-            {
-                std::cout << "FUK!" << std::endl;
-            }
+            std::cout << match.m_file << ':' << match.m_line << ':';
+            std::cout.write(line_start, match.m_line_end - line_start);
 
             return match.m_line_end;
         }
