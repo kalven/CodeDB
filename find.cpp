@@ -5,7 +5,8 @@
 #include "regex.hpp"
 #include "config.hpp"
 #include "file_lock.hpp"
-#include "finder.hpp"
+#include "database.hpp"
+#include "search.hpp"
 
 #include <boost/xpressive/xpressive_dynamic.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -49,8 +50,14 @@ namespace
                     ++line_start;
             }
 
-            std::cout << match.m_file << ':' << match.m_line << ':';
-            std::cout.write(line_start, match.m_line_end - line_start);
+            // std::cout << match.m_file << ':' << match.m_line << ':';
+            // std::cout.write(line_start, match.m_line_end - line_start);
+            std::cout << (match.m_line_end - match.m_line_start) << std::endl;
+
+            if(match.m_line_end > match.m_file_end)
+            {
+                std::cout << "FUK!" << std::endl;
+            }
 
             return match.m_line_end;
         }
@@ -62,7 +69,7 @@ namespace
 void find(const bfs::path& cdb_path, const options& opt)
 {
     config cfg = load_config(cdb_path / "config");
-    finder f(cdb_path / "blob", cdb_path / "index");
+    database db(cdb_path / "blob", cdb_path / "index");
 
     bxp::regex_constants::syntax_option_type find_regex_options = default_regex_options;
     bxp::regex_constants::syntax_option_type file_regex_options = default_regex_options;
@@ -96,9 +103,10 @@ void find(const bfs::path& cdb_path, const options& opt)
         if(opt.m_options.count("-v"))
             pattern = escape_regex(pattern);
 
-        f.search(prefix_size,
-                 compile_cregex(pattern, find_regex_options),
-                 compile_cregex(file_match, file_regex_options),
-                 receiver);
+        search_db(db,
+                  compile_cregex(pattern, find_regex_options),
+                  compile_cregex(file_match, file_regex_options),
+                  prefix_size,
+                  receiver);
     }
 }

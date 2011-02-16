@@ -88,6 +88,12 @@ options parse_cmdline(int argc, char** argv)
         if(result.m_args.empty())
             throw std::runtime_error("find requires a query");
     }
+    else if(args[0] == "serve")
+    {
+        result.m_mode = options::serve;
+        if(args.size() > 1)
+            throw std::runtime_error("Invalid argument");
+    }
     else
     {
         result.m_mode = options::undefined;

@@ -2,7 +2,9 @@ project codedb
     : requirements
         <cxxflags>-std=c++0x ;
 
-alias bfs : : : :
-   <linkflags>"-lboost_filesystem" ;
+src = codedb options config build find init help regex file_lock search httpd serve serve_init serve_util database ;
 
-exe cdb : codedb.cpp options.cpp config.cpp build.cpp find.cpp init.cpp help.cpp regex.cpp file_lock.cpp finder.cpp bfs ;
+libs = boost_filesystem boost_system pthread ;
+lib $(libs) ;
+
+exe cdb : $(src).cpp $(libs) ;

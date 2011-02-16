@@ -4,6 +4,7 @@
 #include "config.hpp"
 #include "build.hpp"
 #include "regex.hpp"
+#include "serve.hpp"
 #include "init.hpp"
 #include "find.hpp"
 #include "help.hpp"
@@ -62,6 +63,9 @@ int main(int argc, char** argv)
                 break;
             case options::find:
                 find(require_codedb_path(bfs::initial_path()), opt);
+                break;
+            case options::serve:
+                serve(require_codedb_path(bfs::initial_path()), opt);
                 break;
             case options::undefined:
                 std::cout << "cdb: '" << opt.m_args[0] << "' is not a cdb-command. See 'cdb --help'.\n";
