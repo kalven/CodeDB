@@ -7,6 +7,7 @@
 
 #include <boost/filesystem/path.hpp>
 
+#include <vector>
 #include <string>
 #include <map>
 
