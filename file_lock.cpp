@@ -7,8 +7,6 @@
 #include <fstream>
 #include <stdexcept>
 
-namespace bfs = boost::filesystem;
-
 file_lock::file_lock(const bfs::path& lock_path)
   : m_path(lock_path)
   , m_state(unlocked)
@@ -48,7 +46,7 @@ void file_lock::create_lock()
             throw std::runtime_error("Unable to create lock file " + m_path.string());
     }
 
-    boost::interprocess::file_lock lock(m_path.string().c_str());
+    bip::file_lock lock(m_path.string().c_str());
 
     m_lock.swap(lock);
 }

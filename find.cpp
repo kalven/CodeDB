@@ -14,16 +14,8 @@
 
 #include <iostream>
 
-namespace bfs = boost::filesystem;
-namespace bxp = boost::xpressive;
-
 namespace
 {
-    const bxp::regex_constants::syntax_option_type default_regex_options =
-        bxp::regex_constants::ECMAScript|
-        bxp::regex_constants::not_dot_newline|
-        bxp::regex_constants::optimize;
-
     std::string escape_regex(std::string text)
     {
         static const bxp::sregex escape_re =
@@ -63,7 +55,6 @@ namespace
 void find(const bfs::path& cdb_path, const options& opt)
 {
     config cfg = load_config(cdb_path / "config");
-    database db(cdb_path / "blob", cdb_path / "index");
 
     bxp::regex_constants::syntax_option_type find_regex_options = default_regex_options;
     bxp::regex_constants::syntax_option_type file_regex_options = default_regex_options;
@@ -90,6 +81,8 @@ void find(const bfs::path& cdb_path, const options& opt)
 
     file_lock lock(cdb_path / "lock");
     lock.lock_sharable();
+
+    database db(cdb_path / "blob", cdb_path / "index");
 
     for(unsigned i = 0; i != opt.m_args.size(); ++i)
     {

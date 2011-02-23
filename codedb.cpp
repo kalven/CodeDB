@@ -1,5 +1,6 @@
 // CodeDB - public domain - 2010 Daniel Andersson
 
+#include "nsalias.hpp"
 #include "options.hpp"
 #include "config.hpp"
 #include "build.hpp"
@@ -16,9 +17,6 @@
 #include <fstream>
 #include <string>
 #include <cctype>
-
-namespace bfs = boost::filesystem;
-namespace bxp = boost::xpressive;
 
 bfs::path make_absolute(const std::string& path_str)
 {

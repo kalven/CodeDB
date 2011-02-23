@@ -2,10 +2,9 @@
 
 #include "init.hpp"
 #include "config.hpp"
+#include "nsalias.hpp"
 
 #include <boost/filesystem/operations.hpp>
-
-namespace bfs = boost::filesystem;
 
 void init()
 {

@@ -14,8 +14,6 @@
 #include <cctype>
 #include <map>
 
-namespace bxp = boost::xpressive;
-
 namespace
 {
     // The value validators throw an exception if the parameter
@@ -125,15 +123,15 @@ void config::set_value(const std::string& name, const std::string& value)
     m_cfg[name] = value;
 }
 
-void save_config(const config& c, const boost::filesystem::path& p)
+void save_config(const config& c, const bfs::path& p)
 {
-    boost::filesystem::ofstream out(p);
+    bfs::ofstream out(p);
     c.save(out);
 }
 
-config load_config(const boost::filesystem::path& p)
+config load_config(const bfs::path& p)
 {
-    boost::filesystem::ifstream in(p);
+    bfs::ifstream in(p);
 
     config c;
     c.load(in);
@@ -141,7 +139,7 @@ config load_config(const boost::filesystem::path& p)
     return c;
 }
 
-void run_config(const boost::filesystem::path& cdb_path, const options& opt)
+void run_config(const bfs::path& cdb_path, const options& opt)
 {
     config cfg = load_config(cdb_path / "config");
 

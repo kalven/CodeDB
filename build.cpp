@@ -15,9 +15,6 @@
 #include <iostream>
 #include <fstream>
 
-namespace bfs = boost::filesystem;
-namespace bxp = boost::xpressive;
-
 namespace
 {
     class builder

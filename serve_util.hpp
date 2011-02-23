@@ -18,7 +18,10 @@ struct http_query
 
 http_query parse_http_query(const std::string& str);
 
+std::string get_arg(const http_query& query, const std::string& index);
+
 std::string html_escape(const std::string& str);
+std::string quot_escape(const std::string& str);
 
 std::string urldecode(const std::string& str);
 std::string urlencode(const std::string& str);

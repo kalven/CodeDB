@@ -3,6 +3,8 @@
 #ifndef CODEDB_FILE_LOCK_HPP
 #define CODEDB_FILE_LOCK_HPP
 
+#include "nsalias.hpp"
+
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/noncopyable.hpp>
@@ -12,7 +14,7 @@
 class file_lock : public boost::noncopyable
 {
   public:
-    file_lock(const boost::filesystem::path&);
+    file_lock(const bfs::path&);
     ~file_lock();
 
     void lock_exclusive();
@@ -28,9 +30,9 @@ class file_lock : public boost::noncopyable
         exclusive
     };
 
-    boost::interprocess::file_lock m_lock;
-    boost::filesystem::path        m_path;
-    state                          m_state;
+    bip::file_lock m_lock;
+    bfs::path      m_path;
+    state          m_state;
 };
 
 #endif

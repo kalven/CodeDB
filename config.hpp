@@ -3,12 +3,13 @@
 #ifndef CODEDB_CONFIG_HPP
 #define CODEDB_CONFIG_HPP
 
-#include <iostream>
-
-#include <string>
-#include <map>
+#include "nsalias.hpp"
 
 #include <boost/filesystem/path.hpp>
+
+#include <iostream>
+#include <string>
+#include <map>
 
 struct options;
 
@@ -29,9 +30,9 @@ class config
     cfg_map m_cfg;
 };
 
-void save_config(const config&, const boost::filesystem::path&);
-config load_config(const boost::filesystem::path&);
+void save_config(const config&, const bfs::path&);
+config load_config(const bfs::path&);
 
-void run_config(const boost::filesystem::path& cdb_path, const options& opt);
+void run_config(const bfs::path& cdb_path, const options& opt);
 
 #endif

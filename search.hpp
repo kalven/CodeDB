@@ -6,6 +6,7 @@
 #include "nsalias.hpp"
 
 #include <boost/xpressive/xpressive_fwd.hpp>
+#include <boost/xpressive/regex_constants.hpp>
 
 class database;
 
@@ -27,6 +28,12 @@ class match_receiver
     virtual ~match_receiver() {}
     virtual const char* on_match(const match_info&) = 0;
 };
+
+// Default regex options for searches
+const bxp::regex_constants::syntax_option_type default_regex_options =
+    bxp::regex_constants::ECMAScript|
+    bxp::regex_constants::not_dot_newline|
+    bxp::regex_constants::optimize;
 
 // Search the memory between begin and end for all matches. If a match is found,
 // the passed match_object is updated with line and position information before

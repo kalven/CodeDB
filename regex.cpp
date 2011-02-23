@@ -4,8 +4,6 @@
 
 #include <boost/xpressive/xpressive_dynamic.hpp>
 
-namespace bxp = boost::xpressive;
-
 namespace
 {
     template<class T>

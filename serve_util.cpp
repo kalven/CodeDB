@@ -42,6 +42,8 @@ namespace
             return "image/png";
         if(ext == ".jpeg" || ext == ".jpg")
             return "image/jpeg";
+        if(ext == ".js")
+            return "text/javascript";
 
         return "text/plain; charset=utf-8";
     }
@@ -78,6 +80,15 @@ http_query parse_http_query(const std::string& in)
     return result;
 }
 
+std::string get_arg(const http_query& query, const std::string& index)
+{
+    auto it = query.m_args.find(index);
+    if(it == query.m_args.end())
+        return std::string();
+
+    return it->second;
+}
+
 std::string html_escape(const std::string& str)
 {
     std::string result;
@@ -95,6 +106,26 @@ std::string html_escape(const std::string& str)
                 break;
             case '&':
                 result += "&amp;";
+                break;
+            default:
+                result += *i;
+        }
+    }
+
+    return result;
+}
+
+std::string quot_escape(const std::string& str)
+{
+    std::string result;
+    result.reserve(str.size());
+
+    for(auto i = str.begin(); i != str.end(); ++i)
+    {
+        switch(*i)
+        {
+            case '"':
+                result += "&quot;";
                 break;
             default:
                 result += *i;
