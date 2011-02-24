@@ -14,7 +14,8 @@ void help(const options& opt)
                   << "  build    Create the code db index\n"
                   << "  config   Get and set db options\n"
                   << "  find     Search the code db\n"
-                  << "  init     Create an empty db\n\n"
+                  << "  init     Create an empty db\n"
+                  << "  serve    Starts a local HTTP server\n\n"
                   << "See 'cdb help COMMAND' for more information on a specific command.\n";
         return;
     }
@@ -28,7 +29,7 @@ void help(const options& opt)
                   << "Directories that match the 'dir-exclude' regex are ignored.\n\n"
                   << "usage: cdb build\n\n"
                   << "Valid options:\n"
-                  << "  -v  : Verbose\n";
+                  << "  -v : Verbose\n";
     }
     else if(topic == "find")
     {
@@ -51,5 +52,13 @@ void help(const options& opt)
                   << "usage: cdb config             : show all config keys\n"
                   << "usage: cdb config KEY         : show configuration for KEY\n"
                   << "usage: cdb config KEY VALUE   : update KEY to a new VALUE\n";
+    }
+    else if(topic == "serve")
+    {
+        std::cout << "serve: Starts a local HTTP server that allows searching and browsing\n"
+                  << "the code db.\n\n"
+                  << "usage: cdb serve\n\n"
+                  << "Valid options:\n"
+                  << "  -d ARG : Location of the code db root to serve\n";
     }
 }
