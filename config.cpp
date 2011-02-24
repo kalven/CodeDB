@@ -6,6 +6,7 @@
 
 #include <boost/filesystem/fstream.hpp>
 #include <boost/xpressive/xpressive_dynamic.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <algorithm>
 #include <stdexcept>
@@ -28,6 +29,15 @@ namespace
     {
         if(value != "on" && value != "off")
             throw std::logic_error("'" + value + "' is not a valid boolean, expected 'on' or 'off'");
+    }
+
+    void validate_port(const std::string& value)
+    {
+        static const bxp::sregex re(
+            bxp::sregex::compile("\\d{1,5}"));
+
+        if(!regex_match(value, re) || boost::lexical_cast<int>(value) > 65535)
+            throw std::logic_error("'" + value + "' is not a valid port number");
     }
 
     struct cfg_key
@@ -56,6 +66,7 @@ namespace
             keys.insert(std::make_pair("nocase-file-match", cfg_key("off", &validate_bool)));
             keys.insert(std::make_pair("build-trim-ws", cfg_key("on", &validate_bool)));
             keys.insert(std::make_pair("find-trim-ws", cfg_key("off", &validate_bool)));
+            keys.insert(std::make_pair("serve-port", cfg_key("8080", &validate_port)));
         }
 
         return keys;

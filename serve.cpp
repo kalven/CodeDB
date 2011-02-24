@@ -3,12 +3,12 @@
 #include "serve.hpp"
 #include "serve_init.hpp"
 #include "serve_util.hpp"
+#include "config.hpp"
 #include "regex.hpp"
 #include "file_lock.hpp"
 #include "database.hpp"
 #include "search.hpp"
 #include "httpd.hpp"
-#include "nsalias.hpp"
 
 #include <boost/xpressive/xpressive_dynamic.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
@@ -217,6 +217,8 @@ namespace
 
 void serve(const bfs::path& cdb_path, const options& opt)
 {
+    config cfg = load_config(cdb_path / "config");
+
     serve_init(cdb_path / "www");
 
     file_lock lock(cdb_path / "lock");
@@ -226,7 +228,7 @@ void serve(const bfs::path& cdb_path, const options& opt)
 
     bas::io_service iosvc;
 
-    httpd server(iosvc, "0.0.0.0", "8080",
+    httpd server(iosvc, "0.0.0.0", cfg.get_value("serve-port"),
                  std::bind(&handler, std::ref(db), cdb_path / "www", std::placeholders::_1));
 
     std::cout << "CodeDB serving" << std::endl;
