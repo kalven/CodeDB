@@ -94,8 +94,8 @@ options parse_cmdline(int argc, char** argv)
         if(args.size() > 3)
             throw std::runtime_error("Invalid argument");
         if(args.size() == 3)
-           // The user supplied a directory
-           add_single(result.m_options, "-d", args[2]);
+            // The user supplied a directory
+            add_single(result.m_options, "-d", args[2]);
     }
     else
     {

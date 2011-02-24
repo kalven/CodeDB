@@ -44,10 +44,10 @@ bfs::path require_codedb_path(const bfs::path& p)
 
 bfs::path require_codedb_path(const options& opt)
 {
-   auto it = opt.m_options.find("-d");
-   return it == opt.m_options.end()
-      ? require_codedb_path(bfs::initial_path())
-      : require_codedb_path(it->second);
+    auto it = opt.m_options.find("-d");
+    return it == opt.m_options.end()
+        ? require_codedb_path(bfs::initial_path())
+        : require_codedb_path(it->second);
 }
 
 int main(int argc, char** argv)
