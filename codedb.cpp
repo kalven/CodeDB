@@ -42,11 +42,20 @@ bfs::path require_codedb_path(const bfs::path& p)
     return cdb_path;
 }
 
+bfs::path require_codedb_path(const options& opt)
+{
+   auto it = opt.m_options.find("-d");
+   return it == opt.m_options.end()
+      ? require_codedb_path(bfs::initial_path())
+      : require_codedb_path(it->second);
+}
+
 int main(int argc, char** argv)
 {
     try
     {
         options opt = parse_cmdline(argc, argv);
+        const bfs::path cdb_path = require_codedb_path(opt);
 
         switch(opt.m_mode)
         {
@@ -54,16 +63,16 @@ int main(int argc, char** argv)
                 init();
                 break;
             case options::config:
-                run_config(require_codedb_path(bfs::initial_path()), opt);
+                run_config(cdb_path, opt);
                 break;
             case options::build:
-                build(require_codedb_path(bfs::initial_path()), opt);
+                build(cdb_path, opt);
                 break;
             case options::find:
-                find(require_codedb_path(bfs::initial_path()), opt);
+                find(cdb_path, opt);
                 break;
             case options::serve:
-                serve(require_codedb_path(bfs::initial_path()), opt);
+                serve(cdb_path, opt);
                 break;
             case options::undefined:
                 std::cout << "cdb: '" << opt.m_args[0] << "' is not a cdb-command. See 'cdb --help'.\n";

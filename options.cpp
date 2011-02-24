@@ -91,8 +91,11 @@ options parse_cmdline(int argc, char** argv)
     else if(args[0] == "serve")
     {
         result.m_mode = options::serve;
-        if(args.size() > 1)
+        if(args.size() > 3)
             throw std::runtime_error("Invalid argument");
+        if(args.size() == 3)
+           // The user supplied a directory
+           add_single(result.m_options, "-d", args[2]);
     }
     else
     {
