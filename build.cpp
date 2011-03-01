@@ -6,8 +6,6 @@
 #include "options.hpp"
 #include "file_lock.hpp"
 
-#include <boost/interprocess/sync/file_lock.hpp>
-#include <boost/interprocess/sync/scoped_lock.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/xpressive/xpressive_dynamic.hpp>

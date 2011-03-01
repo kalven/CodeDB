@@ -9,8 +9,6 @@
 #include "search.hpp"
 
 #include <boost/xpressive/xpressive_dynamic.hpp>
-#include <boost/filesystem/fstream.hpp>
-#include <boost/lexical_cast.hpp>
 
 #include <iostream>
 

@@ -4,7 +4,6 @@
 
 #include <boost/filesystem/fstream.hpp>
 
-#include <fstream>
 #include <stdexcept>
 
 file_lock::file_lock(const bfs::path& lock_path)

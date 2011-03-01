@@ -6,7 +6,7 @@
 #include <boost/xpressive/xpressive_dynamic.hpp>
 
 #include <stdexcept>
-#include <iostream>
+#include <cstring>
 
 namespace
 {

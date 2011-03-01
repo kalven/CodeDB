@@ -10,7 +10,6 @@
 
 #include <algorithm>
 #include <stdexcept>
-#include <sstream>
 #include <iomanip>
 #include <cctype>
 #include <map>

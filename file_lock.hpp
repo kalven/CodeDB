@@ -9,8 +9,6 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/noncopyable.hpp>
 
-#include <string>
-
 class file_lock : public boost::noncopyable
 {
   public:
