@@ -18,11 +18,6 @@
 #include <string>
 #include <cctype>
 
-bfs::path make_absolute(const std::string& path_str)
-{
-    return bfs::system_complete(bfs::path(path_str));
-}
-
 bfs::path find_codedb_path(const bfs::path& p)
 {
     if(p.empty())
