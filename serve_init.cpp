@@ -3,6 +3,7 @@
 #include "serve_init.hpp"
 
 #include <boost/filesystem/fstream.hpp>
+#include <boost/filesystem/operations.hpp>
 
 #include <stdexcept>
 

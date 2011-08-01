@@ -70,8 +70,7 @@ void find(const bfs::path& cdb_path, const options& opt)
     if(opt.m_options.count("-a") == 0 && search_root != cdb_root)
     {
         file_match = "^" + escape_regex(
-            search_root.string().substr(cdb_root.string().size() + 1) +
-            bfs::slash<bfs::path>::value) + ".*";
+            search_root.string().substr(cdb_root.string().size() + 1) + "/") + ".*";
         prefix_size = search_root.string().size() - cdb_root.string().size();
     }
 

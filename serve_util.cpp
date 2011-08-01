@@ -32,7 +32,7 @@ namespace
     const char* content_type(const bfs::path& path)
     {
         const std::string& ext =
-            boost::algorithm::to_lower_copy(path.extension());
+            boost::algorithm::to_lower_copy(path.extension().string());
 
         if(ext == ".html")
             return "text/html; charset=utf-8";
