@@ -49,7 +49,7 @@ namespace
                 m_packed.write(line.c_str(), line.size());
             }
 
-            m_index << bytes << ':' << path.string().substr(prefix_size) << '\n';
+            m_index << bytes << ':' << path.generic_string().substr(prefix_size) << '\n';
         }
 
       private:
