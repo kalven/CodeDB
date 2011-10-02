@@ -3,8 +3,6 @@
 #include "search.hpp"
 #include "database.hpp"
 
-#include <boost/xpressive/xpressive_dynamic.hpp>
-
 #include <stdexcept>
 #include <cstring>
 
@@ -33,25 +31,25 @@ namespace
     }
 }
 
-void search(const char*        begin,
-            const char*        end,
-            const bxp::cregex& re,
-            match_info&        minfo,
-            match_receiver&    receiver)
+void search(const char*     begin,
+            const char*     end,
+            regex&          re,
+            match_info&     minfo,
+            match_receiver& receiver)
 {
     if(begin == end)
         return;
-
-    bxp::cmatch what;
 
     minfo.m_line = 1;
 
     const char* search_pos = begin;
 
-    while(regex_search(search_pos, end, what, re))
+    while(re.search(search_pos, end))
     {
+        match_range hit = re.what(0);
+
         std::size_t offset = (search_pos - begin) +
-            static_cast<std::size_t>(what.position());
+            (hit.begin() - search_pos);
 
         if(begin + offset == end)
             break;
@@ -68,21 +66,19 @@ void search(const char*        begin,
     }
 }
 
-void search_db(const database&    db,
-               const bxp::cregex& re,
-               const bxp::cregex& file_re,
-               std::size_t        prefix_size,
-               match_receiver&    receiver)
+void search_db(const database& db,
+               regex&          re,
+               regex&          file_re,
+               std::size_t     prefix_size,
+               match_receiver& receiver)
 {
-    bxp::cmatch what;
-
     match_info minfo;
 
     for(std::size_t i = 0; i != db.size(); ++i)
     {
         const database::file& file = db[i];
 
-        if(regex_search(file.m_name.c_str(), file.m_name.c_str() + file.m_name.size(), what, file_re))
+        if(file_re.search(file.m_name))
         {
             minfo.m_full_file  = file.m_name.c_str();
             minfo.m_file       = minfo.m_full_file + prefix_size;

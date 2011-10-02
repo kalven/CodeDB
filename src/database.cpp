@@ -1,8 +1,8 @@
 // CodeDB - public domain - 2010 Daniel Andersson
 
 #include "database.hpp"
+#include "regex.hpp"
 
-#include <boost/xpressive/xpressive_dynamic.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -19,8 +19,7 @@ void database::load_index(const bfs::path& path)
     if(!input.is_open())
         throw std::runtime_error("Unable to open index " + path.string() + " for reading");
 
-    bxp::sregex re = bxp::sregex::compile("(\\d+):(.*)");
-    bxp::smatch what;
+    auto re = compile_regex("(\\d+):(.*)", 2);
 
     const char* data = static_cast<const char*>(m_region.get_address());
 
@@ -30,11 +29,12 @@ void database::load_index(const bfs::path& path)
         if(line.empty() || line[0] == '#')
             continue;
 
-        if(regex_match(line, what, re))
+        if(re->match(line))
         {
-            std::size_t size = boost::lexical_cast<std::size_t>(what[1]);
+            std::size_t size = boost::lexical_cast<std::size_t>(
+                static_cast<std::string>(re->what(1)));
 
-            file entry = {what[2], data, data+size};
+            file entry = {re->what(2), data, data+size};
             m_index.push_back(entry);
 
             data += size;

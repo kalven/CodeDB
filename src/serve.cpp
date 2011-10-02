@@ -10,7 +10,6 @@
 #include "search.hpp"
 #include "httpd.hpp"
 
-#include <boost/xpressive/xpressive_dynamic.hpp>
 #include <boost/algorithm/string/case_conv.hpp>
 
 #include <iostream>
@@ -91,10 +90,8 @@ namespace
             
         line_receiver lines;
 
-        search(f->m_start, f->m_end,
-               compile_cregex(search_string, default_regex_options),
-               minfo,
-               lines);
+        regex_ptr re = compile_regex(search_string);
+        search(f->m_start, f->m_end, *re, minfo, lines);
 
         std::ostringstream os;
         os << header(search_string)
@@ -143,11 +140,10 @@ namespace
 
         std::string search_string = get_arg(q, "q");
 
-        search_db(db,
-                  compile_cregex(search_string, default_regex_options),
-                  compile_cregex("", default_regex_options),
-                  0,
-                  recevier);
+        regex_ptr re = compile_regex(search_string);
+        regex_ptr file_re = compile_regex("");
+
+        search_db(db, *re, *file_re, 0, recevier);
 
         std::ostringstream os;
 

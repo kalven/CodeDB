@@ -8,7 +8,6 @@
 
 #include <boost/filesystem/fstream.hpp>
 #include <boost/algorithm/string/trim.hpp>
-#include <boost/xpressive/xpressive_dynamic.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -67,9 +66,9 @@ namespace
 
     struct build_options
     {
-        bxp::sregex m_file_inc_re;
-        bxp::sregex m_dir_excl_re;
-        bool        m_verbose;
+        regex_ptr m_file_inc_re;
+        regex_ptr m_dir_excl_re;
+        bool      m_verbose;
     };
 
     void process_directory(builder& b, build_options& o, const bfs::path& root)
@@ -84,13 +83,13 @@ namespace
             const bfs::path& f = *i;
             const bool is_dir = bfs::is_directory(f);
 
-            if(is_dir && regex_match(f.filename().string(), o.m_dir_excl_re))
+            if(is_dir && o.m_dir_excl_re->match(f.filename().string()))
             {
                 i.no_push();
                 continue;
             }
 
-            if(!is_dir && regex_match(f.filename().string(), o.m_file_inc_re))
+            if(!is_dir && o.m_file_inc_re->match(f.filename().string()))
             {
                 b.process_file(f, prefix_size);
                 if(o.m_verbose)
@@ -104,15 +103,10 @@ void build(const bfs::path& cdb_path, const options& opt)
 {
     config cfg = load_config(cdb_path / "config");
 
-    bxp::regex_constants::syntax_option_type regex_options =
-        bxp::regex_constants::ECMAScript|bxp::regex_constants::optimize;
-
     build_options bo;
 
-    bo.m_file_inc_re = compile_sregex(
-        cfg.get_value("file-include"), regex_options);
-    bo.m_dir_excl_re = compile_sregex(
-        cfg.get_value("dir-exclude"), regex_options);
+    bo.m_file_inc_re = compile_regex(cfg.get_value("file-include"));
+    bo.m_dir_excl_re = compile_regex(cfg.get_value("dir-exclude"));
 
     bo.m_verbose = opt.m_options.count("-v") == 1;
 

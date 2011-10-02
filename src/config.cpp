@@ -5,7 +5,6 @@
 #include "regex.hpp"
 
 #include <boost/filesystem/fstream.hpp>
-#include <boost/xpressive/xpressive_dynamic.hpp>
 #include <boost/lexical_cast.hpp>
 
 #include <algorithm>
@@ -21,7 +20,7 @@ namespace
 
     void validate_regex(const std::string& value)
     {
-        compile_sregex(value, bxp::regex_constants::ECMAScript);
+        compile_regex(value);
     }
 
     void validate_bool(const std::string& value)
@@ -32,10 +31,9 @@ namespace
 
     void validate_port(const std::string& value)
     {
-        static const bxp::sregex re(
-            bxp::sregex::compile("\\d{1,5}"));
+        auto re = compile_regex(value);
 
-        if(!regex_match(value, re) || boost::lexical_cast<int>(value) > 65535)
+        if(re->match(value) || boost::lexical_cast<int>(value) > 65535)
             throw std::logic_error("'" + value + "' is not a valid port number");
     }
 
@@ -85,18 +83,13 @@ namespace
 
 void config::load(std::istream& in)
 {
-    static const bxp::sregex re(
-        bxp::sregex::compile("([a-z\\-]+)=(.*)"));
-
-    bxp::smatch what;
+    auto re = compile_regex("([a-z\\-]+)=(.*)", 2);
 
     std::string line;
     while(getline(in, line))
     {
-        if(line.empty() || line[0] == '#')
-            continue;
-        if(regex_match(line, what, re))
-            m_cfg.insert(std::make_pair(what[1], what[2]));
+        if(re->match(line))
+            m_cfg.insert({re->what(1), re->what(2)});
     }
 }
 

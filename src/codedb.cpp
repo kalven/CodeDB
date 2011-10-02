@@ -11,7 +11,6 @@
 #include "help.hpp"
 
 #include <boost/filesystem.hpp>
-#include <boost/xpressive/regex_error.hpp>
 
 #include <iostream>
 #include <string>
@@ -78,16 +77,14 @@ int main(int argc, char** argv)
                 break;
         }
     }
-    catch(const bxp::regex_error& error)
+    catch(const regex_error& error)
     {
         std::string desc = error.what();
         if(!desc.empty())
             desc[0] = std::toupper(desc[0]);
 
-        std::cerr << "Error: invalid regex";
-        if(const std::string* re = boost::get_error_info<errinfo_regex_string>(error))
-            std::cerr << " '" << *re << "'";
-        std::cerr << "\n  " << desc << std::endl;
+        std::cerr << "Error: invalid regex '" << error.m_expr
+                  << "'\n  " << desc << '\n';
     }
     catch(const std::exception& e)
     {

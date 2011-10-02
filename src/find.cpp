@@ -8,19 +8,10 @@
 #include "database.hpp"
 #include "search.hpp"
 
-#include <boost/xpressive/xpressive_dynamic.hpp>
-
 #include <iostream>
 
 namespace
 {
-    std::string escape_regex(std::string text)
-    {
-        static const bxp::sregex escape_re =
-            bxp::sregex::compile("([\\^\\.\\$\\|\\(\\)\\[\\]\\*\\+\\?\\/\\\\])");
-        return bxp::regex_replace(text, escape_re, std::string("\\$1"));
-    }
-
     class default_receiver : public match_receiver
     {
       public:
@@ -54,14 +45,6 @@ void find(const bfs::path& cdb_path, const options& opt)
 {
     config cfg = load_config(cdb_path / "config");
 
-    bxp::regex_constants::syntax_option_type find_regex_options = default_regex_options;
-    bxp::regex_constants::syntax_option_type file_regex_options = default_regex_options;
-
-    if(opt.m_options.count("-i"))
-        find_regex_options = find_regex_options|bxp::regex_constants::icase;
-    if(cfg.get_value("nocase-file-match") == "on")
-        file_regex_options = file_regex_options|bxp::regex_constants::icase;
-
     const bfs::path cdb_root = cdb_path.parent_path();
     const bfs::path search_root = bfs::initial_path();
 
@@ -81,16 +64,20 @@ void find(const bfs::path& cdb_path, const options& opt)
 
     database db(cdb_path / "blob", cdb_path / "index");
 
+    const char* find_regex_options =
+        opt.m_options.count("-i") ? "i" : "";
+    const char* file_regex_options =
+        cfg.get_value("nocase-file-match") == "on" ? "i" : "";
+
+    regex_ptr file_re = compile_regex(file_match, 0, file_regex_options);
+
     for(unsigned i = 0; i != opt.m_args.size(); ++i)
     {
         std::string pattern = opt.m_args[i];
         if(opt.m_options.count("-v"))
             pattern = escape_regex(pattern);
 
-        search_db(db,
-                  compile_cregex(pattern, find_regex_options),
-                  compile_cregex(file_match, file_regex_options),
-                  prefix_size,
-                  receiver);
+        regex_ptr re = compile_regex(pattern, 0, find_regex_options);
+        search_db(db, *re, *file_re, prefix_size, receiver);
     }
 }
