@@ -40,6 +40,17 @@ namespace
         return "</div>";
     }
 
+    const database::file* find_by_name(database& db, const std::string& file_name)
+    {
+        db.restart();
+
+        while(const database::file* f = db.next_file())
+            if(f->m_name == file_name)
+                return f;
+
+        return 0;
+    }
+
     class collecting_receiver : public match_receiver
     {
       public:
@@ -79,7 +90,7 @@ namespace
     {
         std::string file_name = get_arg(q, "f");
 
-        const database::file* f = db.find_by_name(file_name);
+        const database::file* f = find_by_name(db, file_name);
         if(!f)
             throw std::runtime_error("File <b>" + html_escape(file_name) + "</b> not found");
 
@@ -220,12 +231,12 @@ void serve(const bfs::path& cdb_path, const options& opt)
     file_lock lock(cdb_path / "lock");
     lock.lock_sharable();
 
-    database db(cdb_path / "blob", cdb_path / "index");
+    database_ptr db = open_database(cdb_path / "blob", cdb_path / "index");
 
     bas::io_service iosvc;
 
     httpd server(iosvc, "0.0.0.0", cfg.get_value("serve-port"),
-                 std::bind(&handler, std::ref(db), cdb_path / "www", std::placeholders::_1));
+                 std::bind(&handler, std::ref(*db), cdb_path / "www", std::placeholders::_1));
 
     std::cout << "CodeDB serving" << std::endl;
     iosvc.run();

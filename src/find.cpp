@@ -62,7 +62,7 @@ void find(const bfs::path& cdb_path, const options& opt)
     file_lock lock(cdb_path / "lock");
     lock.lock_sharable();
 
-    database db(cdb_path / "blob", cdb_path / "index");
+    database_ptr db = open_database(cdb_path / "blob", cdb_path / "index");
 
     const char* find_regex_options =
         opt.m_options.count("-i") ? "i" : "";
@@ -78,6 +78,6 @@ void find(const bfs::path& cdb_path, const options& opt)
             pattern = escape_regex(pattern);
 
         regex_ptr re = compile_regex(pattern, 0, find_regex_options);
-        search_db(db, *re, *file_re, prefix_size, receiver);
+        search_db(*db, *re, *file_re, prefix_size, receiver);
     }
 }

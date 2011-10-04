@@ -37,7 +37,7 @@ void search(const char*     begin,
             match_receiver& receiver);
 
 // Search an entire db. Only files that match the file_re will be considered.
-void search_db(const database& db,
+void search_db(database&       db,
                regex&          re,
                regex&          file_re,
                std::size_t     prefix_size,

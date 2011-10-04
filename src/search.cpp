@@ -66,7 +66,7 @@ void search(const char*     begin,
     }
 }
 
-void search_db(const database& db,
+void search_db(database&       db,
                regex&          re,
                regex&          file_re,
                std::size_t     prefix_size,
@@ -74,18 +74,17 @@ void search_db(const database& db,
 {
     match_info minfo;
 
-    for(std::size_t i = 0; i != db.size(); ++i)
+    db.restart();
+    while(const database::file* file = db.next_file())
     {
-        const database::file& file = db[i];
-
-        if(file_re.search(file.m_name))
+        if(file_re.search(file->m_name))
         {
-            minfo.m_full_file  = file.m_name.c_str();
+            minfo.m_full_file  = file->m_name.c_str();
             minfo.m_file       = minfo.m_full_file + prefix_size;
-            minfo.m_file_start = file.m_start;
-            minfo.m_file_end   = file.m_end;
+            minfo.m_file_start = file->m_start;
+            minfo.m_file_end   = file->m_end;
 
-            search(file.m_start, file.m_end, re, minfo, receiver);
+            search(file->m_start, file->m_end, re, minfo, receiver);
         }
     }
 }
