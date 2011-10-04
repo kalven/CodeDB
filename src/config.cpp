@@ -89,7 +89,7 @@ void config::load(std::istream& in)
     while(getline(in, line))
     {
         if(re->match(line))
-            m_cfg.insert({re->what(1), re->what(2)});
+            m_cfg.insert(std::make_pair(re->what(1), re->what(2)));
     }
 }
 
