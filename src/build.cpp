@@ -4,6 +4,7 @@
 #include "regex.hpp"
 #include "config.hpp"
 #include "options.hpp"
+#include "compress.hpp"
 #include "file_lock.hpp"
 
 #include <boost/filesystem/fstream.hpp>
@@ -14,13 +15,16 @@
 
 namespace
 {
+    const std::size_t max_chunk_size = 1024*1024;
+
     class builder
     {
       public:
-        builder(const bfs::path& packed, const bfs::path& index, bool trim)
+        builder(const bfs::path& packed, const bfs::path& index, bool trim, bool compress)
           : m_packed(packed, bfs::ofstream::binary)
           , m_index(index)
           , m_trim(trim)
+          , m_compress(compress)
         {
             if(!m_packed.is_open())
                 throw std::runtime_error("Unable to open " + packed.string() + " for writing");
@@ -45,10 +49,18 @@ namespace
                 line  += char(10);
                 bytes += line.size();
 
-                m_packed.write(line.c_str(), line.size());
+                m_chunk += line;
             }
 
+            if(m_chunk.size() > max_chunk_size)
+                write_chunk();
+
             m_index << bytes << ':' << path.generic_string().substr(prefix_size) << '\n';
+        }
+
+        void finalize()
+        {
+            write_chunk();
         }
 
       private:
@@ -59,9 +71,31 @@ namespace
                 boost::algorithm::trim(line);
         }
 
+        void write_chunk()
+        {
+            if(m_compress)
+            {
+                std::string compressed;
+                snappy_compress(m_chunk, compressed);
+
+                std::size_t csize = compressed.size();
+                m_packed.write(reinterpret_cast<const char*>(&csize), sizeof(csize));
+                m_packed.write(compressed.c_str(), compressed.size());
+            }
+            else
+            {
+                m_packed.write(m_chunk.c_str(), m_chunk.size());
+            }
+
+            m_chunk.clear();
+        }
+
+        std::string m_chunk;
+
         bfs::ofstream m_packed;
         bfs::ofstream m_index;
         bool          m_trim;
+        bool          m_compress;
     };
 
     struct build_options
@@ -113,6 +147,11 @@ void build(const bfs::path& cdb_path, const options& opt)
     file_lock lock(cdb_path / "lock");
     lock.lock_exclusive();
 
-    builder b(cdb_path / "blob", cdb_path / "index", cfg.get_value("build-trim-ws") == "on");
+    builder b(cdb_path / "blob",
+              cdb_path / "index",
+              cfg.get_value("build-trim-ws") == "on",
+              cfg.get_value("compression") == "on");
+
     process_directory(b, bo, cdb_path.parent_path());
+    b.finalize();
 }

@@ -64,6 +64,7 @@ namespace
             keys.insert(std::make_pair("build-trim-ws", cfg_key("on", &validate_bool)));
             keys.insert(std::make_pair("find-trim-ws", cfg_key("off", &validate_bool)));
             keys.insert(std::make_pair("serve-port", cfg_key("8080", &validate_port)));
+            keys.insert(std::make_pair("compression", cfg_key("off", &validate_bool)));
         }
 
         return keys;
@@ -110,7 +111,7 @@ config config::default_config()
     return c;
 }
 
-std::string config::get_value(const std::string& name)
+std::string config::get_value(const std::string& name) const
 {
     const cfg_key& key = require_key(name);
 

@@ -62,7 +62,7 @@ void find(const bfs::path& cdb_path, const options& opt)
     file_lock lock(cdb_path / "lock");
     lock.lock_sharable();
 
-    database_ptr db = open_database(cdb_path / "blob", cdb_path / "index");
+    database_ptr db = open_database(cdb_path / "blob", cdb_path / "index", cfg);
 
     const char* find_regex_options =
         opt.m_options.count("-i") ? "i" : "";

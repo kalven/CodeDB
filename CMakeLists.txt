@@ -30,5 +30,8 @@ endif()
 
 file(GLOB SOURCES "src/*.cpp")
 
-add_executable(cdb ${SOURCES})
+file(GLOB SNAPPY_SRC "ext/snappy/*.cc")
+include_directories("ext/snappy")
+
+add_executable(cdb ${SOURCES} ${SNAPPY_SRC})
 target_link_libraries(cdb ${LIBS})

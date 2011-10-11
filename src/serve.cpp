@@ -231,12 +231,13 @@ void serve(const bfs::path& cdb_path, const options& opt)
     file_lock lock(cdb_path / "lock");
     lock.lock_sharable();
 
-    database_ptr db = open_database(cdb_path / "blob", cdb_path / "index");
+    database_ptr db = open_database(cdb_path / "blob", cdb_path / "index", cfg);
 
     bas::io_service iosvc;
 
+    bfs::path docroot = cdb_path / "www";
     httpd server(iosvc, "0.0.0.0", cfg.get_value("serve-port"),
-                 std::bind(&handler, std::ref(*db), cdb_path / "www", std::placeholders::_1));
+        [&](const http_request& req) { return handler(*db, docroot, req); });
 
     std::cout << "CodeDB serving" << std::endl;
     iosvc.run();

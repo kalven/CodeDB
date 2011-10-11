@@ -10,6 +10,8 @@
 #include <string>
 #include <memory>
 
+class config;
+
 class database
 {
   public:
@@ -28,6 +30,8 @@ class database
 
 typedef std::unique_ptr<database> database_ptr;
 
-database_ptr open_database(const bfs::path& blob, const bfs::path& index);
+database_ptr open_database(const bfs::path& blob,
+                           const bfs::path& index,
+                           const config&    cfg);
 
 #endif
