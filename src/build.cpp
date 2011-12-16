@@ -6,6 +6,7 @@
 #include "options.hpp"
 #include "compress.hpp"
 #include "file_lock.hpp"
+#include "profiler.hpp"
 
 #include <boost/filesystem/fstream.hpp>
 #include <boost/algorithm/string/trim.hpp>
@@ -15,27 +16,32 @@
 
 namespace
 {
-    const std::size_t max_chunk_size = 1024*1024;
+    const std::size_t max_chunk_size = 512*1024;
 
     class builder
     {
       public:
-        builder(const bfs::path& packed, const bfs::path& index, bool trim, bool compress)
+        builder(const bfs::path& packed, const bfs::path& index, bool trim)
           : m_packed(packed, bfs::ofstream::binary)
           , m_index(index)
           , m_trim(trim)
-          , m_compress(compress)
+          , m_process_file_prof(make_profiler("process_file"))
+          , m_compress_prof(make_profiler("compress"))
         {
             if(!m_packed.is_open())
                 throw std::runtime_error("Unable to open " + packed.string() + " for writing");
             if(!m_index.is_open())
                 throw std::runtime_error("Unable to open " + index.string() + " for writing");
+
+            m_packed.write("CDBZ", 4);
         }
 
         // Index format: byte_size:path
 
         void process_file(const bfs::path& path, std::size_t prefix_size)
         {
+            profile_scope prof(m_process_file_prof);
+
             bfs::ifstream input(path);
             if(!input.is_open())
                 throw std::runtime_error("Unable to open " + path.string() + " for reading");
@@ -73,29 +79,24 @@ namespace
 
         void write_chunk()
         {
-            if(m_compress)
-            {
-                std::string compressed;
-                snappy_compress(m_chunk, compressed);
+            profile_scope prof(m_compress_prof);
 
-                std::size_t csize = compressed.size();
-                m_packed.write(reinterpret_cast<const char*>(&csize), sizeof(csize));
-                m_packed.write(compressed.c_str(), compressed.size());
-            }
-            else
-            {
-                m_packed.write(m_chunk.c_str(), m_chunk.size());
-            }
-
+            std::string compressed;
+            snappy_compress(m_chunk, compressed);
             m_chunk.clear();
+
+            std::uint32_t csize =
+                static_cast<std::uint32_t>(compressed.size());
+            m_packed.write(reinterpret_cast<const char*>(&csize), sizeof(csize));
+            m_packed.write(compressed.c_str(), compressed.size());
         }
 
-        std::string m_chunk;
-
+        std::string   m_chunk;
         bfs::ofstream m_packed;
         bfs::ofstream m_index;
         bool          m_trim;
-        bool          m_compress;
+        profiler&     m_process_file_prof;
+        profiler&     m_compress_prof;
     };
 
     struct build_options
@@ -149,8 +150,7 @@ void build(const bfs::path& cdb_path, const options& opt)
 
     builder b(cdb_path / "blob",
               cdb_path / "index",
-              cfg.get_value("build-trim-ws") == "on",
-              cfg.get_value("compression") == "on");
+              cfg.get_value("build-trim-ws") == "on");
 
     process_directory(b, bo, cdb_path.parent_path());
     b.finalize();

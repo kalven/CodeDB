@@ -2,6 +2,7 @@
 
 #include "search.hpp"
 #include "database.hpp"
+#include "profiler.hpp"
 
 #include <stdexcept>
 #include <cstring>
@@ -29,6 +30,8 @@ namespace
 
         return count;
     }
+
+    profiler& search_prof = make_profiler("search db");
 }
 
 void search(const char*     begin,
@@ -72,6 +75,8 @@ void search_db(database&       db,
                std::size_t     prefix_size,
                match_receiver& receiver)
 {
+    profile_scope prof(search_prof);
+
     match_info minfo;
 
     db.restart();

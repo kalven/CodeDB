@@ -1,5 +1,6 @@
 // CodeDB - public domain - 2010 Daniel Andersson
 
+#include "profiler.hpp"
 #include "nsalias.hpp"
 #include "options.hpp"
 #include "config.hpp"
@@ -9,6 +10,7 @@
 #include "init.hpp"
 #include "find.hpp"
 #include "help.hpp"
+
 
 #include <boost/filesystem.hpp>
 
@@ -45,6 +47,9 @@ bfs::path require_codedb_path(const options& opt)
 
 int main(int argc, char** argv)
 {
+    auto& main_prof = make_profiler("main");
+    profile_start(main_prof);
+
     try
     {
         options opt = parse_cmdline(argc, argv);
@@ -90,4 +95,7 @@ int main(int argc, char** argv)
     {
         std::cerr << "Error: " << e.what() << std::endl;
     }
+
+    profile_stop(main_prof);
+    profiler_report();
 }

@@ -231,7 +231,7 @@ void serve(const bfs::path& cdb_path, const options& opt)
     file_lock lock(cdb_path / "lock");
     lock.lock_sharable();
 
-    database_ptr db = open_database(cdb_path / "blob", cdb_path / "index", cfg);
+    database_ptr db = open_database(cdb_path / "blob", cdb_path / "index");
 
     bas::io_service iosvc;
 

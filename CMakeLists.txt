@@ -3,11 +3,11 @@ cmake_minimum_required (VERSION 2.6)
 option(USE_RE2 "Use Google's re2 regular expression library." ON)
 
 if(CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -flto -Wall")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -Wall")
 endif()
 
 # Set up boost include and library path
-find_package(Boost 1.46.0 REQUIRED COMPONENTS system filesystem)
+find_package(Boost 1.46.0 REQUIRED COMPONENTS system filesystem thread)
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${BOOST_LIBRARYDIR})
 

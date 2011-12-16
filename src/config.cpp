@@ -64,7 +64,6 @@ namespace
             keys.insert(std::make_pair("build-trim-ws", cfg_key("on", &validate_bool)));
             keys.insert(std::make_pair("find-trim-ws", cfg_key("off", &validate_bool)));
             keys.insert(std::make_pair("serve-port", cfg_key("8080", &validate_port)));
-            keys.insert(std::make_pair("compression", cfg_key("off", &validate_bool)));
         }
 
         return keys;
