@@ -1,13 +1,8 @@
 #pragma once
 
-#include <cstdint>
+#include "ticks.hpp"
 
-static __inline__ std::uint64_t getticks()
-{
-    std::uint64_t res;
-    asm volatile ("rdtsc" : "=A" (res));
-    return res;
-}
+#include <cstdint>
 
 struct profiler
 {

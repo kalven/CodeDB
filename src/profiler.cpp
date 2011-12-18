@@ -20,6 +20,10 @@ void profiler_report()
     if(!std::getenv("CDB_PROFILE"))
         return;
 
+    int mhz = cpu_mhz();
+    if(mhz == -1)
+        return;
+
     std::cerr << "Counter          Elapsed time      Hits\n"
               << "---------------------------------------\n";
 
@@ -28,7 +32,7 @@ void profiler_report()
         if(!s_profilers[i].m_total)
             continue;
         
-        auto ms = s_profilers[i].m_total / 2000000.0;
+        auto ms = s_profilers[i].m_total / (mhz * 1000.0);
         std::cerr << std::left << std::setw(15) << s_profilers[i].m_name
                   << std::setw(10) << std::right
                   << std::fixed << std::setprecision(3) << ms << " ms."
