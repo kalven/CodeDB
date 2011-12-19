@@ -1,6 +1,7 @@
 // CodeDB - public domain - 2010 Daniel Andersson
 
 #include "build.hpp"
+#include "mvar.hpp"
 #include "regex.hpp"
 #include "config.hpp"
 #include "options.hpp"
@@ -9,6 +10,7 @@
 #include "profiler.hpp"
 
 #include <boost/filesystem/fstream.hpp>
+#include <boost/thread.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -34,6 +36,7 @@ namespace
           , m_trim(trim)
           , m_process_file_prof(make_profiler("process_file"))
           , m_compress_prof(make_profiler("compress"))
+          , m_thread(std::bind(&builder::compress_thread, this))
         {
             if(!m_packed.is_open())
                 throw std::runtime_error("Unable to open " + packed.string() + " for writing");
@@ -41,6 +44,16 @@ namespace
                 throw std::runtime_error("Unable to open " + index.string() + " for writing");
 
             m_packed.write("CDBZ", 4);
+        }
+
+        ~builder()
+        {
+            compress_chunk();
+
+            std::string stop;
+            m_chunkvar.put(stop);
+
+            m_thread.join();
         }
 
         // Index format: byte_size:path
@@ -70,38 +83,54 @@ namespace
             }
 
             if(m_chunk.size() > max_chunk_size)
-                write_chunk();
+                compress_chunk();
 
             m_index << bytes << ':' << path.generic_string().substr(prefix_size) << '\n';
         }
 
-        void finalize()
-        {
-            write_chunk();
-        }
-
       private:
 
-        void write_chunk()
+        void compress_chunk()
         {
-            profile_scope prof(m_compress_prof);
-
-            std::string compressed;
-            snappy_compress(m_chunk, compressed);
-            m_chunk.clear();
-
-            std::uint32_t csize =
-                static_cast<std::uint32_t>(compressed.size());
-            m_packed.write(reinterpret_cast<const char*>(&csize), sizeof(csize));
-            m_packed.write(compressed.c_str(), compressed.size());
+            if(!m_chunk.empty())
+            {
+                m_chunkvar.put(m_chunk);
+                m_chunk.clear();
+            }
         }
 
-        std::string   m_chunk;
-        bfs::ofstream m_packed;
-        bfs::ofstream m_index;
-        bool          m_trim;
-        profiler&     m_process_file_prof;
-        profiler&     m_compress_prof;
+        void compress_thread()
+        {
+            std::string chunk;
+
+            for(;;)
+            {
+                m_chunkvar.get(chunk);
+                if(chunk.empty())
+                    break;
+
+                profile_start(m_compress_prof);
+
+                std::string compressed;
+                snappy_compress(chunk, compressed);
+
+                std::uint32_t csize =
+                    static_cast<std::uint32_t>(compressed.size());
+                m_packed.write(reinterpret_cast<const char*>(&csize), sizeof(csize));
+                m_packed.write(compressed.c_str(), compressed.size());
+
+                profile_stop(m_compress_prof);
+            }
+        }
+
+        std::string       m_chunk;
+        bfs::ofstream     m_packed;
+        bfs::ofstream     m_index;
+        bool              m_trim;
+        profiler&         m_process_file_prof;
+        profiler&         m_compress_prof;
+        mvar<std::string> m_chunkvar;
+        boost::thread     m_thread;
     };
 
     struct build_options
@@ -158,5 +187,4 @@ void build(const bfs::path& cdb_path, const options& opt)
               cfg.get_value("build-trim-ws") == "on");
 
     process_directory(b, bo, cdb_path.parent_path());
-    b.finalize();
 }
