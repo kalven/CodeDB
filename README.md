@@ -48,6 +48,12 @@ By default, CodeDB will search files based on where it is invoked. If we navigat
     $ cdb find ^#include
     <... fewer lines>
     
-## License
+## Licenses
 
 CodeDB is public domain.
+
+Source code in ext/snappy is:
+  Copyright 2011, Google Inc.
+  All rights reserved.
+
+See ext/snappy/COPYING for details.
