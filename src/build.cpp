@@ -9,7 +9,6 @@
 #include "profiler.hpp"
 
 #include <boost/filesystem/fstream.hpp>
-#include <boost/algorithm/string/trim.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -17,6 +16,14 @@
 namespace
 {
     const std::size_t max_chunk_size = 512*1024;
+
+    void trim(const char*& b, const char*& e)
+    {
+        while(b != e && (*b == ' ' || *b == '\t' || *b == '\r'))
+            ++b;
+        while(e != b && (e[-1] == ' ' || e[-1] == '\t' || e[-1] == '\r'))
+            --e;
+    }
 
     class builder
     {
@@ -50,12 +57,16 @@ namespace
             std::size_t bytes = 0;
             while(getline(input, line))
             {
-                process_input_line(line);
+                const char* b = line.c_str();
+                const char* e = b + line.size();
 
-                line  += char(10);
-                bytes += line.size();
+                if(m_trim)
+                    trim(b, e);
 
-                m_chunk += line;
+                m_chunk.append(b, e - b);
+                m_chunk += '\n';
+
+                bytes += (e - b) + 1;
             }
 
             if(m_chunk.size() > max_chunk_size)
@@ -70,12 +81,6 @@ namespace
         }
 
       private:
-
-        void process_input_line(std::string& line)
-        {
-            if(m_trim)
-                boost::algorithm::trim(line);
-        }
 
         void write_chunk()
         {
