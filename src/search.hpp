@@ -7,6 +7,7 @@
 #include "regex.hpp"
 
 class database;
+class db_chunk;
 
 struct match_info
 {
@@ -42,6 +43,13 @@ void search_db(database&       db,
                regex&          file_re,
                std::size_t     prefix_size,
                match_receiver& receiver);
+
+// Search all files in a database chunk
+void search_chunk(db_chunk&       chunk,
+                  regex&          re,
+                  regex&          file_re,
+                  std::size_t     prefix_size,
+                  match_receiver& receiver);
 
 #endif
 

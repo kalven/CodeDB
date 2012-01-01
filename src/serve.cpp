@@ -3,6 +3,7 @@
 #include "serve.hpp"
 #include "serve_init.hpp"
 #include "serve_util.hpp"
+#include "compress.hpp"
 #include "config.hpp"
 #include "regex.hpp"
 #include "file_lock.hpp"
@@ -40,15 +41,31 @@ namespace
         return "</div>";
     }
 
-    const database::file* find_by_name(database& db, const std::string& file_name)
+    bool find_by_name(database&          db,
+                      db_file&           result,
+                      const std::string& file_name,
+                      std::string&       storage)
     {
-        db.restart();
+        std::string compressed;
 
-        while(const database::file* f = db.next_file())
-            if(f->m_name == file_name)
-                return f;
+        db.rewind();
+        while(db.next_chunk(compressed))
+        {
+            snappy_uncompress(compressed, storage);
+            db_chunk chunk(storage);
 
-        return 0;
+            db_file file;
+            while(chunk.next_file(file))
+            {
+                if(file_name == file.m_name_start)
+                {
+                    result = file;
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     class collecting_receiver : public match_receiver
@@ -90,19 +107,20 @@ namespace
     {
         std::string file_name = get_arg(q, "f");
 
-        const database::file* f = find_by_name(db, file_name);
-        if(!f)
+        db_file f;
+        std::string file_storage;
+        if(!find_by_name(db, f, file_name, file_storage))
             throw std::runtime_error("File <b>" + html_escape(file_name) + "</b> not found");
 
         std::string search_string = get_arg(q, "q");
 
         match_info minfo;
-        minfo.m_file_start = f->m_start;
+        minfo.m_file_start = f.m_start;
             
         line_receiver lines;
 
         regex_ptr re = compile_regex(search_string);
-        search(f->m_start, f->m_end, *re, minfo, lines);
+        search(f.m_start, f.m_end, *re, minfo, lines);
 
         std::ostringstream os;
         os << header(search_string)
@@ -112,16 +130,16 @@ namespace
             "<caption>" << html_escape(file_name) << "</caption>"
             "<tr><td class=\"lines\"><pre>";
 
-        std::size_t linecount = std::count(f->m_start, f->m_end, char(10));
+        std::size_t linecount = std::count(f.m_start, f.m_end, char(10));
         for(std::size_t i = 1; i <= linecount; ++i)
             os << i << '\n';
 
         os << "</pre></td><td class=\"text\"><pre>";
 
         std::size_t line = 1, linei = 0;
-        for(const char* cursor = f->m_start; cursor != f->m_end; ++line)
+        for(const char* cursor = f.m_start; cursor != f.m_end; ++line)
         {
-            const char* eol = std::find(cursor, f->m_end, char(10));
+            const char* eol = std::find(cursor, f.m_end, char(10));
             if(linei < lines.m_line_numbers.size() && line == lines.m_line_numbers[linei])
             {
                 os << "<span class=hl>"
@@ -231,7 +249,7 @@ void serve(const bfs::path& cdb_path, const options& opt)
     file_lock lock(cdb_path / "lock");
     lock.lock_sharable();
 
-    database_ptr db = open_database(cdb_path / "blob", cdb_path / "index");
+    database_ptr db = open_database(cdb_path / "db");
 
     bas::io_service iosvc;
 

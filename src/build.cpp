@@ -1,7 +1,6 @@
 // CodeDB - public domain - 2010 Daniel Andersson
 
 #include "build.hpp"
-#include "mvar.hpp"
 #include "regex.hpp"
 #include "config.hpp"
 #include "options.hpp"
@@ -10,10 +9,11 @@
 #include "profiler.hpp"
 
 #include <boost/filesystem/fstream.hpp>
-#include <boost/thread.hpp>
 
+#include <type_traits>
 #include <iostream>
 #include <fstream>
+#include <cassert>
 
 namespace
 {
@@ -27,40 +27,62 @@ namespace
             --e;
     }
 
+    template<class T>
+    void write_binary(std::ostream& dest, const T* array, std::size_t count)
+    {
+        static_assert(std::is_pointer<T>::value == false, "T can't be pointer");
+        static_assert(std::is_pod<T>::value, "T must be POD");
+        dest.write(reinterpret_cast<const char*>(array), sizeof(T) * count);
+    }
+
+    template<class T>
+    void write_binary(std::ostream& dest, const T& value)
+    {
+        write_binary(dest, &value, 1);
+    }
+
+    template<class T>
+    void append_binary(std::string& dest, const T& value)
+    {
+        static_assert(std::is_pointer<T>::value == false, "T can't be pointer");
+        static_assert(std::is_pod<T>::value, "T must be POD");
+
+        const char* ptr = reinterpret_cast<const char*>(&value);
+        dest.append(ptr, ptr + sizeof(value));
+    }
+
+    template<class T>
+    void write_binary_at(std::string& dest, std::size_t index, const T& value)
+    {
+        assert(index + sizeof(value) <= dest.size());
+        std::memcpy(&dest[index], &value, sizeof(value));
+    }
+
     class builder
     {
       public:
-        builder(const bfs::path& packed, const bfs::path& index, bool trim)
+        builder(const bfs::path& packed, bool trim)
           : m_packed(packed, bfs::ofstream::binary)
-          , m_index(index)
           , m_trim(trim)
           , m_process_file_prof(make_profiler("process_file"))
           , m_compress_prof(make_profiler("compress"))
-          , m_thread(std::bind(&builder::compress_thread, this))
         {
             if(!m_packed.is_open())
                 throw std::runtime_error("Unable to open " + packed.string() + " for writing");
-            if(!m_index.is_open())
-                throw std::runtime_error("Unable to open " + index.string() + " for writing");
 
-            m_packed.write("CDBZ", 4);
+            // Database magic
+            m_packed.write("CDB1", 4);
         }
 
         ~builder()
         {
-            compress_chunk();
-
-            std::string stop;
-            m_chunkvar.put(stop);
-
-            m_thread.join();
+            if(!m_chunk_files.empty())
+                compress_chunk();
         }
-
-        // Index format: byte_size:path
 
         void process_file(const bfs::path& path, std::size_t prefix_size)
         {
-            profile_scope prof(m_process_file_prof);
+            profile_start(m_process_file_prof);
 
             bfs::ifstream input(path);
             if(!input.is_open())
@@ -76,61 +98,83 @@ namespace
                 if(m_trim)
                     trim(b, e);
 
-                m_chunk.append(b, e - b);
-                m_chunk += '\n';
+                m_chunk_data.append(b, e - b);
+                m_chunk_data += '\n';
 
                 bytes += (e - b) + 1;
             }
 
-            if(m_chunk.size() > max_chunk_size)
-                compress_chunk();
+            file_entry fe;
+            fe.m_size = static_cast<std::uint32_t>(bytes);
+            fe.m_name = path.generic_string().substr(prefix_size);
 
-            m_index << bytes << ':' << path.generic_string().substr(prefix_size) << '\n';
+            m_chunk_files.push_back(fe);
+
+            profile_stop(m_process_file_prof);
+
+            if(m_chunk_data.size() > max_chunk_size)
+                compress_chunk();
         }
 
       private:
 
         void compress_chunk()
         {
-            if(!m_chunk.empty())
-            {
-                m_chunkvar.put(m_chunk);
-                m_chunk.clear();
-            }
-        }
+            profile_scope prof(m_compress_prof);
 
-        void compress_thread()
-        {
             std::string chunk;
 
-            for(;;)
+            // file content offset (placeholder)
+            append_binary(chunk, std::uint32_t(0));
+
+            // file count
+            append_binary(chunk, static_cast<std::uint32_t>(m_chunk_files.size()));
+
+            // [{file-size, name-offset}]
+            std::uint32_t name_offset = 0;
+            for(auto i = m_chunk_files.begin(); i != m_chunk_files.end(); ++i)
             {
-                m_chunkvar.get(chunk);
-                if(chunk.empty())
-                    break;
+                append_binary(chunk, i->m_size);
+                append_binary(chunk, name_offset);
 
-                profile_start(m_compress_prof);
-
-                std::string compressed;
-                snappy_compress(chunk, compressed);
-
-                std::uint32_t csize =
-                    static_cast<std::uint32_t>(compressed.size());
-                m_packed.write(reinterpret_cast<const char*>(&csize), sizeof(csize));
-                m_packed.write(compressed.c_str(), compressed.size());
-
-                profile_stop(m_compress_prof);
+                name_offset += i->m_name.size() + 1;
             }
+
+            // [{filename, 0}]
+            for(auto i = m_chunk_files.begin(); i != m_chunk_files.end(); ++i)
+            {
+                chunk += i->m_name;
+                chunk += '\0';
+            }
+
+            // now we can write the file content offset
+            write_binary_at(chunk, 0, static_cast<std::uint32_t>(chunk.size()));
+
+            // finally, the actual file contents
+            chunk += m_chunk_data;
+
+            std::string compressed_chunk;
+            snappy_compress(chunk, compressed_chunk);
+
+            write_binary(m_packed, static_cast<std::uint32_t>(compressed_chunk.size()));
+            m_packed.write(compressed_chunk.c_str(), compressed_chunk.size());
+
+            m_chunk_data.clear();
+            m_chunk_files.clear();
         }
 
-        std::string       m_chunk;
-        bfs::ofstream     m_packed;
-        bfs::ofstream     m_index;
-        bool              m_trim;
-        profiler&         m_process_file_prof;
-        profiler&         m_compress_prof;
-        mvar<std::string> m_chunkvar;
-        boost::thread     m_thread;
+        struct file_entry
+        {
+            std::uint32_t m_size;
+            std::string   m_name;
+        };
+
+        std::string             m_chunk_data;
+        bfs::ofstream           m_packed;
+        bool                    m_trim;
+        profiler&               m_process_file_prof;
+        profiler&               m_compress_prof;
+        std::vector<file_entry> m_chunk_files;
     };
 
     struct build_options
@@ -182,9 +226,7 @@ void build(const bfs::path& cdb_path, const options& opt)
     file_lock lock(cdb_path / "lock");
     lock.lock_exclusive();
 
-    builder b(cdb_path / "blob",
-              cdb_path / "index",
-              cfg.get_value("build-trim-ws") == "on");
+    builder b(cdb_path / "db", cfg.get_value("build-trim-ws") == "on");
 
     process_directory(b, bo, cdb_path.parent_path());
 }
