@@ -58,11 +58,13 @@ struct mt_thread
 {
     mt_thread()
       : m_ready(false)
+      , m_next(0)
     {
     }
 
     bool             m_ready;
     std::string      m_output;
+    mt_thread*       m_next;
     boost::condition m_honk;
 };
 
@@ -70,16 +72,81 @@ struct mt_search
 {
     mt_search(database& db)
       : m_db(db)
-      , m_next_chunk(0)
-      , m_next_print(0)
+      , m_head(0)
+      , m_tail(0)
     {
     }
 
-    database&               m_db;
-    int                     m_next_chunk;
-    int                     m_next_print;
-    std::vector<mt_thread*> m_chunkinfo;
-    boost::mutex            m_mutex;
+    bool next_chunk(std::pair<const char*, const char*>& compressed, mt_thread* thread)
+    {
+        boost::mutex::scoped_lock lock(m_mutex);
+
+        if(!m_db.next_chunk(compressed))
+            return false;
+
+        // If there's a current head (and it isn't us)
+        if(m_head != 0 && m_head != thread)
+            m_head->m_next = thread;
+
+        // If there's no current tail, then it's us!
+        if(m_tail == 0)
+            m_tail = thread;
+        
+        // thread is now at the head of the queue
+        thread->m_next = 0;
+        m_head = thread;
+
+        thread->m_ready = false;
+
+        return true;
+    }
+
+    void report(mt_thread* thread)
+    {
+        boost::mutex::scoped_lock lock(m_mutex);
+
+        if(m_tail != thread && thread->m_output.empty())
+        {
+            // find previous
+            mt_thread* prev = m_tail;
+            for(; prev; prev = prev->m_next)
+                if(prev->m_next == thread)
+                    break;
+
+            if(prev)
+                prev->m_next = thread->m_next;
+            if(m_head == thread)
+                m_head = prev;
+
+            return;
+        }
+
+        thread->m_ready = true;
+
+        if(m_tail == thread)
+        {
+            std::cout << thread->m_output;
+            mt_thread* cur = thread->m_next;
+
+            while(cur && cur->m_ready)
+            {
+                std::cout << cur->m_output;
+                cur->m_honk.notify_one();
+                cur = cur->m_next;
+            }
+
+            m_tail = cur;
+        }
+        else
+        {
+            thread->m_honk.wait(lock);
+        }
+    }
+
+    database&    m_db;
+    mt_thread*   m_head;
+    mt_thread*   m_tail;
+    boost::mutex m_mutex;
 };
 
 void search_db_mt(mt_search&  mts,
@@ -96,17 +163,8 @@ void search_db_mt(mt_search&  mts,
 
     for(;;)
     {
-        int current_chunk = 0;
-
-        // Lock mutex while reading a chunk from the db
-        {
-            boost::mutex::scoped_lock lock(mts.m_mutex);
-            if(!mts.m_db.next_chunk(compressed))
-                break;
-
-            mts.m_chunkinfo.push_back(&tinfo);
-            current_chunk = mts.m_next_chunk++;
-        }
+        if(!mts.next_chunk(compressed, &tinfo))
+            break;
 
         // Decompress chunk and create a chunk wrapper
         snappy_uncompress(compressed.first, compressed.second, uncompressed);
@@ -115,32 +173,7 @@ void search_db_mt(mt_search&  mts,
         tinfo.m_output.clear();
         search_chunk(chunk, *re, *file_re, prefix_size, receiver);
 
-        // Lock mutex to output result
-        boost::mutex::scoped_lock lock(mts.m_mutex);
-
-        if(current_chunk == mts.m_next_print)
-        {
-            // We're next in line to print our result, so we do that
-            std::cout << tinfo.m_output;
-            ++mts.m_next_print;
-
-            // Then we check if there are any other threads with results
-            // ready. If so, we print that as well and wake them up.
-            while(mts.m_next_print < int(mts.m_chunkinfo.size()) && mts.m_chunkinfo[mts.m_next_print]->m_ready)
-            {
-                std::cout << mts.m_chunkinfo[mts.m_next_print]->m_output;
-
-                mts.m_chunkinfo[mts.m_next_print]->m_ready = false;
-                mts.m_chunkinfo[mts.m_next_print]->m_honk.notify_one();
-
-                ++mts.m_next_print;
-            }
-        }
-        else
-        {
-            tinfo.m_ready = true;
-            tinfo.m_honk.wait(lock);
-        }
+        mts.report(&tinfo);
     }
 }
 
