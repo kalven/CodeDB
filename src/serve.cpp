@@ -46,12 +46,12 @@ namespace
                       const std::string& file_name,
                       std::string&       storage)
     {
-        std::string compressed;
+        std::pair<const char*, const char*> compressed;
 
         db.rewind();
         while(db.next_chunk(compressed))
         {
-            snappy_uncompress(compressed, storage);
+            snappy_uncompress(compressed.first, compressed.second, storage);
             db_chunk chunk(storage);
 
             db_file file;

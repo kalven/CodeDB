@@ -89,7 +89,7 @@ void search_db_mt(mt_search&  mts,
 {
     mt_thread tinfo;
 
-    std::string compressed;
+    std::pair<const char*, const char*> compressed;
     std::string uncompressed;
 
     string_receiver receiver(tinfo.m_output, false);
@@ -109,7 +109,7 @@ void search_db_mt(mt_search&  mts,
         }
 
         // Decompress chunk and create a chunk wrapper
-        snappy_uncompress(compressed, uncompressed);
+        snappy_uncompress(compressed.first, compressed.second, uncompressed);
         db_chunk chunk(uncompressed);
 
         tinfo.m_output.clear();

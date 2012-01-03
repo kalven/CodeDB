@@ -6,6 +6,6 @@
 #include <string>
 
 void snappy_compress(const std::string& input, std::string& output);
-void snappy_uncompress(const std::string& input, std::string& output);
+void snappy_uncompress(const char* begin, const char* end, std::string& output);
 
 #endif

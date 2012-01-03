@@ -40,7 +40,8 @@ class database
     virtual ~database();
 
     virtual void rewind() = 0;
-    virtual bool next_chunk(std::string&) = 0;
+    // virtual bool next_chunk(std::string&) = 0;
+    virtual bool next_chunk(std::pair<const char*, const char*>&) = 0;
 };
 
 typedef std::unique_ptr<database> database_ptr;

@@ -4,7 +4,8 @@
 #include "profiler.hpp"
 #include "config.hpp"
 
-#include <boost/filesystem/fstream.hpp>
+#include <boost/interprocess/file_mapping.hpp>
+#include <boost/interprocess/mapped_region.hpp>
 
 namespace
 {
@@ -65,42 +66,53 @@ namespace
     {
       public:
         compressed_database(const bfs::path& packed)
-          : m_packed(packed, bfs::ifstream::binary)
+          : m_mapping(packed.string().c_str(), bip::read_only)
+          , m_region(m_mapping, bip::read_only)
+          , m_data(static_cast<const char*>(m_region.get_address()))
+          , m_data_end(m_data + m_region.get_size())
           , m_load_profiler(make_profiler("load"))
         {
-            if(!m_packed.is_open())
-                throw std::runtime_error("Unable to open blob " + packed.string() + " for reading");
-
-            char hd[4];
-            m_packed.read(hd, sizeof(hd));
-            if(hd[0] != 'C' || hd[1] != 'D' || hd[2] != 'B' || hd[3] != '1')
+            if(m_data + 8 > m_data_end || m_data[0] != 'C' || m_data[1] != 'D' || m_data[2] != 'B' || m_data[3] != '1')
                 throw std::runtime_error("Blob " + packed.string() + " is not valid");
+
+            m_data += 4;
         }
 
       private:
 
         void rewind()
         {
-            m_packed.clear();
-            m_packed.seekg(4);
+            m_data = static_cast<const char*>(m_region.get_address()) + 4;
         }
 
-        bool next_chunk(std::string& data)
+        bool next_chunk(std::pair<const char*, const char*>& data)
         {
             profile_scope prof(m_load_profiler);
 
-            std::uint32_t chunk_size = read_binary<std::uint32_t>(m_packed);
-            if(!m_packed)
+            if(m_data + 4 > m_data_end)
                 return false;
 
-            data.resize(chunk_size);
-            m_packed.read(&data[0], data.size());
+            std::uint32_t chunk_size;
+            std::memcpy(&chunk_size, m_data, 4);
 
-            return m_packed;
+            const char* chunk_end = m_data + 4 + chunk_size;
+
+            if(chunk_end > m_data_end)
+                return false;
+
+            data.first = m_data + 4;
+            data.second = chunk_end;
+
+            m_data = chunk_end;
+
+            return true;
         }
 
-        bfs::ifstream m_packed;
-        profiler&     m_load_profiler;
+        bip::file_mapping  m_mapping;
+        bip::mapped_region m_region;
+        const char*        m_data;
+        const char*        m_data_end;
+        profiler&          m_load_profiler;
     };
 }
 

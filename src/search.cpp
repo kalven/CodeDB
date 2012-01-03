@@ -73,14 +73,14 @@ void search_db(database&       db,
                std::size_t     prefix_size,
                match_receiver& receiver)
 {
-    std::string compressed;
+    std::pair<const char*, const char*> compressed;
     std::string uncompressed;
 
     db.rewind();
 
     while(db.next_chunk(compressed))
     {
-        snappy_uncompress(compressed, uncompressed);
+        snappy_uncompress(compressed.first, compressed.second, uncompressed);
 
         db_chunk chunk(uncompressed);
 
