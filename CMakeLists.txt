@@ -13,7 +13,6 @@ link_directories(${BOOST_LIBRARYDIR})
 
 if(NOT MSVC)
     find_package(Threads)
-    link_directories("/usr/local/lib")
     set(LIBS ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
@@ -24,7 +23,14 @@ if(WIN32)
 endif()
 
 if(USE_RE2)
-  set(LIBS ${LIBS} re2)
+
+  find_path    (RE2_INC re2.h   PATHS /usr/local/include /opt/local/include /usr/include PATH_SUFFIXES re2)
+  find_library (RE2_LIB re2     PATHS /usr/local/lub /opt/local/lib /usr/lib)
+
+  set(LIBS ${LIBS} ${RE2_LIB})
+
+  include_directories (${RE2_INC})
+
   add_definitions("-DCDB_USE_RE2")
 endif()
 
