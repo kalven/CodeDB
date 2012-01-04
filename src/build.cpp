@@ -5,14 +5,14 @@
 #include "config.hpp"
 #include "options.hpp"
 #include "compress.hpp"
-#include "file_lock.hpp"
 #include "profiler.hpp"
+#include "file_lock.hpp"
+#include "serialization.hpp"
 
 #include <boost/filesystem/fstream.hpp>
 
 #include <type_traits>
 #include <iostream>
-#include <fstream>
 #include <cassert>
 
 namespace
@@ -25,37 +25,6 @@ namespace
             ++b;
         while(e != b && (e[-1] == ' ' || e[-1] == '\t' || e[-1] == '\r'))
             --e;
-    }
-
-    template<class T>
-    void write_binary(std::ostream& dest, const T* array, std::size_t count)
-    {
-        static_assert(std::is_pointer<T>::value == false, "T can't be pointer");
-        static_assert(std::is_pod<T>::value, "T must be POD");
-        dest.write(reinterpret_cast<const char*>(array), sizeof(T) * count);
-    }
-
-    template<class T>
-    void write_binary(std::ostream& dest, const T& value)
-    {
-        write_binary(dest, &value, 1);
-    }
-
-    template<class T>
-    void append_binary(std::string& dest, const T& value)
-    {
-        static_assert(std::is_pointer<T>::value == false, "T can't be pointer");
-        static_assert(std::is_pod<T>::value, "T must be POD");
-
-        const char* ptr = reinterpret_cast<const char*>(&value);
-        dest.append(ptr, ptr + sizeof(value));
-    }
-
-    template<class T>
-    void write_binary_at(std::string& dest, std::size_t index, const T& value)
-    {
-        assert(index + sizeof(value) <= dest.size());
-        std::memcpy(&dest[index], &value, sizeof(value));
     }
 
     class builder
@@ -105,7 +74,7 @@ namespace
             }
 
             file_entry fe;
-            fe.m_size = static_cast<std::uint32_t>(bytes);
+            fe.m_size = static_cast<db_uint>(bytes);
             fe.m_name = path.generic_string().substr(prefix_size);
 
             m_chunk_files.push_back(fe);
@@ -125,17 +94,17 @@ namespace
             std::string chunk;
 
             // file content offset (placeholder)
-            append_binary(chunk, std::uint32_t(0));
+            write_binary(chunk, 0);
 
             // file count
-            append_binary(chunk, static_cast<std::uint32_t>(m_chunk_files.size()));
+            write_binary(chunk, m_chunk_files.size());
 
             // [{file-size, name-offset}]
-            std::uint32_t name_offset = 0;
+            db_uint name_offset = 0;
             for(auto i = m_chunk_files.begin(); i != m_chunk_files.end(); ++i)
             {
-                append_binary(chunk, i->m_size);
-                append_binary(chunk, name_offset);
+                write_binary(chunk, i->m_size);
+                write_binary(chunk, name_offset);
 
                 name_offset += i->m_name.size() + 1;
             }
@@ -148,7 +117,7 @@ namespace
             }
 
             // now we can write the file content offset
-            write_binary_at(chunk, 0, static_cast<std::uint32_t>(chunk.size()));
+            write_binary_at(chunk, 0, chunk.size());
 
             // finally, the actual file contents
             chunk += m_chunk_data;
@@ -156,7 +125,7 @@ namespace
             std::string compressed_chunk;
             snappy_compress(chunk, compressed_chunk);
 
-            write_binary(m_packed, static_cast<std::uint32_t>(compressed_chunk.size()));
+            write_binary(m_packed, compressed_chunk.size());
             m_packed.write(compressed_chunk.c_str(), compressed_chunk.size());
 
             m_chunk_data.clear();
@@ -165,8 +134,8 @@ namespace
 
         struct file_entry
         {
-            std::uint32_t m_size;
-            std::string   m_name;
+            db_uint     m_size;
+            std::string m_name;
         };
 
         std::string             m_chunk_data;

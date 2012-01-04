@@ -4,9 +4,11 @@
 #define CODEDB_DATABASE_HPP
 
 #include "nsalias.hpp"
+#include "serialization.hpp"
 
 #include <boost/filesystem/path.hpp>
 
+#include <cstdint>
 #include <string>
 #include <memory>
 
@@ -29,9 +31,9 @@ class db_chunk
 
   private:
     const std::string& m_data;
-    std::uint32_t      m_data_offset;
-    std::uint32_t      m_count;
-    std::uint32_t      m_current;
+    db_uint            m_data_offset;
+    db_uint            m_count;
+    db_uint            m_current;
 };
 
 class database
@@ -40,7 +42,6 @@ class database
     virtual ~database();
 
     virtual void rewind() = 0;
-    // virtual bool next_chunk(std::string&) = 0;
     virtual bool next_chunk(std::pair<const char*, const char*>&) = 0;
 };
 

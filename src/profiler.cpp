@@ -1,3 +1,4 @@
+// CodeDB - public domain - 2010 Daniel Andersson
 #include "profiler.hpp"
 
 #include <iostream>

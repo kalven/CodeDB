@@ -1,3 +1,4 @@
+// CodeDB - public domain - 2010 Daniel Andersson
 #pragma once
 
 #include "ticks.hpp"

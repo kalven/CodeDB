@@ -1,3 +1,4 @@
+// CodeDB - public domain - 2010 Daniel Andersson
 #include "ticks.hpp"
 
 #ifdef _MSC_VER
