@@ -40,7 +40,7 @@ namespace
 
             m_out += match.m_file;
 
-            char lineno[16];
+            char lineno[24];
             std::sprintf(lineno, ":%u:", static_cast<unsigned>(match.m_line));
 
             m_out += lineno;
@@ -52,133 +52,140 @@ namespace
         std::string& m_out;
         bool         m_trim;
     };
-}
 
-struct mt_thread
-{
-    mt_thread()
-      : m_ready(false)
-      , m_next(0)
+    class mt_search
     {
-    }
-
-    bool             m_ready;
-    std::string      m_output;
-    mt_thread*       m_next;
-    boost::condition m_honk;
-};
-
-struct mt_search
-{
-    mt_search(database& db)
-      : m_db(db)
-      , m_head(0)
-      , m_tail(0)
-    {
-    }
-
-    bool next_chunk(std::pair<const char*, const char*>& compressed, mt_thread* thread)
-    {
-        boost::mutex::scoped_lock lock(m_mutex);
-
-        if(!m_db.next_chunk(compressed))
-            return false;
-
-        // If there's a current head (and it isn't us)
-        if(m_head != 0 && m_head != thread)
-            m_head->m_next = thread;
-
-        // If there's no current tail, then it's us!
-        if(m_tail == 0)
-            m_tail = thread;
-        
-        // thread is now at the head of the queue
-        thread->m_next = 0;
-        m_head = thread;
-
-        thread->m_ready = false;
-
-        return true;
-    }
-
-    void report(mt_thread* thread)
-    {
-        boost::mutex::scoped_lock lock(m_mutex);
-
-        if(m_tail != thread && thread->m_output.empty())
+      public:
+        mt_search(database& db, bool trim, std::size_t prefix_size)
+          : m_db(db)
+          , m_head(0)
+          , m_tail(0)
+          , m_trim(trim)
+          , m_prefix_size(prefix_size)
         {
-            // find previous
-            mt_thread* prev = m_tail;
-            for(; prev; prev = prev->m_next)
-                if(prev->m_next == thread)
-                    break;
-
-            if(prev)
-                prev->m_next = thread->m_next;
-            if(m_head == thread)
-                m_head = prev;
-
-            return;
         }
 
-        thread->m_ready = true;
-
-        if(m_tail == thread)
+        void search_db(regex_ptr re, regex_ptr file_re)
         {
-            std::cout << thread->m_output;
-            mt_thread* cur = thread->m_next;
+            thread_data tinfo;
 
-            while(cur && cur->m_ready)
+            std::pair<const char*, const char*> compressed;
+            std::string uncompressed;
+
+            string_receiver receiver(tinfo.m_output, m_trim);
+
+            // The worker thread loop consists of repeatedly asking for a
+            // compressed chunk of data, uncompressing it and reporting the
+            // reuslts. We do this until all chunks have been processed.
+            while(next_chunk(compressed, &tinfo))
             {
-                std::cout << cur->m_output;
-                cur->m_honk.notify_one();
-                cur = cur->m_next;
+                snappy_uncompress(compressed.first, compressed.second, uncompressed);
+                db_chunk chunk(uncompressed);
+
+                tinfo.m_output.clear();
+                search_chunk(chunk, *re, *file_re, m_prefix_size, receiver);
+
+                report(&tinfo);
+            }
+        }
+
+      private:
+
+        struct thread_data
+        {
+            thread_data()
+              : m_ready(false)
+              , m_next(0)
+            {
             }
 
-            m_tail = cur;
-        }
-        else
+            bool             m_ready;
+            std::string      m_output;
+            thread_data*     m_next;
+            boost::condition m_honk;
+        };
+
+        bool next_chunk(std::pair<const char*, const char*>& compressed, thread_data* tdata)
         {
-            thread->m_honk.wait(lock);
+            boost::mutex::scoped_lock lock(m_mutex);
+
+            if(!m_db.next_chunk(compressed))
+                return false;
+
+            // If there's a current head (and it isn't us)
+            if(m_head != 0 && m_head != tdata)
+                m_head->m_next = tdata;
+
+            // If there's no current tail, then it's us!
+            if(m_tail == 0)
+                m_tail = tdata;
+
+            // thread is now at the head of the queue
+            tdata->m_next = 0;
+            m_head = tdata;
+
+            tdata->m_ready = false;
+
+            return true;
         }
-    }
 
-    database&    m_db;
-    mt_thread*   m_head;
-    mt_thread*   m_tail;
-    boost::mutex m_mutex;
-};
+        void report(thread_data* tdata)
+        {
+            boost::mutex::scoped_lock lock(m_mutex);
 
-void search_db_mt(mt_search&  mts,
-                  regex_ptr   re,
-                  regex_ptr   file_re,
-                  std::size_t prefix_size)
-{
-    mt_thread tinfo;
+            if(m_tail != tdata && tdata->m_output.empty())
+            {
+                // There's no point in waiting to output an empty result
+                // chunk. In that case we remove ourself from the queue.
+                thread_data* prev = m_tail;
+                for(; prev; prev = prev->m_next)
+                    if(prev->m_next == tdata)
+                        break;
 
-    std::pair<const char*, const char*> compressed;
-    std::string uncompressed;
+                if(prev)
+                    prev->m_next = tdata->m_next;
+                if(m_head == tdata)
+                    m_head = prev;
 
-    string_receiver receiver(tinfo.m_output, false);
+                return;
+            }
 
-    for(;;)
-    {
-        if(!mts.next_chunk(compressed, &tinfo))
-            break;
+            if(m_tail == tdata)
+            {
+                // This chunk has data and is next in line to output.
+                std::cout << tdata->m_output;
+                thread_data* cur = tdata->m_next;
 
-        // Decompress chunk and create a chunk wrapper
-        snappy_uncompress(compressed.first, compressed.second, uncompressed);
-        db_chunk chunk(uncompressed);
+                // Also spin through any other chunks that are ready. Write the
+                // data and wake the thread that is waiting.
+                while(cur && cur->m_ready)
+                {
+                    std::cout << cur->m_output;
+                    cur->m_honk.notify_one();
+                    cur = cur->m_next;
+                }
 
-        tinfo.m_output.clear();
-        search_chunk(chunk, *re, *file_re, prefix_size, receiver);
+                m_tail = cur;
+            }
+            else
+            {
+                // We have data, but it's not our turn. Go to sleep.
+                tdata->m_ready = true;
+                tdata->m_honk.wait(lock);
+            }
+        }
 
-        mts.report(&tinfo);
-    }
+        database&    m_db;
+        thread_data* m_head;
+        thread_data* m_tail;
+        bool         m_trim;
+        std::size_t  m_prefix_size;
+        boost::mutex m_mutex;
+    };
 }
 
 void find(const bfs::path& cdb_path, const options& opt)
-{    
+{
     config cfg = load_config(cdb_path / "config");
 
     const bfs::path cdb_root = cdb_path.parent_path();
@@ -201,36 +208,30 @@ void find(const bfs::path& cdb_path, const options& opt)
     const char* file_regex_options =
         cfg.get_value("nocase-file-match") == "on" ? "i" : "";
 
+    bool trim = cfg.get_value("find-trim-ws") == "on";
+
     for(unsigned i = 0; i != opt.m_args.size(); ++i)
     {
         database_ptr db = open_database(cdb_path / "db");
-        
+
         std::string pattern = opt.m_args[i];
         if(opt.m_options.count("-v"))
             pattern = escape_regex(pattern);
 
-        mt_search mts(*db);
+        mt_search mts(*db, trim, prefix_size);
+
+        auto worker = [&]
+        {
+            mts.search_db(compile_regex(pattern, 0, find_regex_options),
+                          compile_regex(file_match, 0, file_regex_options));
+        };
 
         boost::thread_group workers;
-
         if(unsigned hw_threads = boost::thread::hardware_concurrency())
-        {
             for(unsigned i = 0; i != hw_threads-1; ++i)
-            {
-                workers.create_thread([&]
-                {
-                    search_db_mt(mts,
-                                 compile_regex(pattern, 0, find_regex_options),
-                                 compile_regex(file_match, 0, file_regex_options),
-                                 prefix_size);
-                });
-            }
-        }
+                workers.create_thread(worker);
 
-        search_db_mt(mts,
-                     compile_regex(pattern, 0, find_regex_options),
-                     compile_regex(file_match, 0, file_regex_options),
-                     prefix_size);
+        worker();
 
         workers.join_all();
     }
