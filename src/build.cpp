@@ -97,7 +97,7 @@ namespace
             write_binary(chunk, 0);
 
             // file count
-            write_binary(chunk, m_chunk_files.size());
+            write_binary(chunk, static_cast<db_uint>(m_chunk_files.size()));
 
             // [{file-size, name-offset}]
             db_uint name_offset = 0;
@@ -106,7 +106,7 @@ namespace
                 write_binary(chunk, i->m_size);
                 write_binary(chunk, name_offset);
 
-                name_offset += i->m_name.size() + 1;
+                name_offset += static_cast<db_uint>(i->m_name.size()) + 1;
             }
 
             // [{filename, 0}]
@@ -117,7 +117,7 @@ namespace
             }
 
             // now we can write the file content offset
-            write_binary_at(chunk, 0, chunk.size());
+            write_binary_at(chunk, 0, static_cast<db_uint>(chunk.size()));
 
             // finally, the actual file contents
             chunk += m_chunk_data;
@@ -125,7 +125,7 @@ namespace
             std::string compressed_chunk;
             snappy_compress(chunk, compressed_chunk);
 
-            write_binary(m_packed, compressed_chunk.size());
+            write_binary(m_packed, static_cast<db_uint>(compressed_chunk.size()));
             m_packed.write(compressed_chunk.c_str(), compressed_chunk.size());
 
             m_chunk_data.clear();
