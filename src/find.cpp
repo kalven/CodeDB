@@ -60,32 +60,45 @@ namespace
           : m_db(db)
           , m_head(0)
           , m_tail(0)
+          , m_free(0)
+          , m_data(8)
           , m_trim(trim)
           , m_prefix_size(prefix_size)
         {
+            // Set up the free list
+            for(auto i = m_data.begin(); i != m_data.end(); ++i)
+            {
+                i->m_next = m_free;
+                m_free = &*i;
+            }
         }
 
-        void search_db(regex_ptr re, regex_ptr file_re)
+        void search_db(regex_ptr re, regex_ptr file_re, const char* id)
         {
-            thread_data tinfo;
-
-            std::pair<const char*, const char*> compressed;
             std::string uncompressed;
 
-            string_receiver receiver(tinfo.m_output, m_trim);
+            profiler& p = make_profiler(id);
 
             // The worker thread loop consists of repeatedly asking for a
             // compressed chunk of data, uncompressing it and reporting the
             // reuslts. We do this until all chunks have been processed.
-            while(next_chunk(compressed, &tinfo))
+            for(;;)
             {
-                snappy_uncompress(compressed.first, compressed.second, uncompressed);
+                thread_data* td = 0;
+                {
+                    profile_scope prof(p);
+                    td = next_chunk();
+                }
+                if(td == 0)
+                    break;
+
+                snappy_uncompress(td->m_input.first, td->m_input.second, uncompressed);
                 db_chunk chunk(uncompressed);
 
-                tinfo.m_output.clear();
+                string_receiver receiver(td->m_output, m_trim);
                 search_chunk(chunk, *re, *file_re, m_prefix_size, receiver);
 
-                report(&tinfo);
+                report(td);
             }
         }
 
@@ -93,62 +106,69 @@ namespace
 
         struct thread_data
         {
-            thread_data()
-              : m_ready(false)
-              , m_next(0)
-            {
-            }
-
-            bool             m_ready;
-            std::string      m_output;
-            thread_data*     m_next;
-            boost::condition m_honk;
+            bool                                m_ready;
+            std::pair<const char*, const char*> m_input;
+            std::string                         m_output;
+            thread_data*                        m_next;
+            int                                 m_chunkid;
         };
 
-        bool next_chunk(std::pair<const char*, const char*>& compressed, thread_data* tdata)
+        thread_data* next_chunk()
         {
             boost::mutex::scoped_lock lock(m_mutex);
 
+            // First we grab a compressed chunk from the database, if there are
+            // no chunks left then we're done.
+            std::pair<const char*, const char*> compressed;
             if(!m_db.next_chunk(compressed))
-                return false;
+                return 0;
 
-            // If there's a current head (and it isn't us)
-            if(m_head != 0 && m_head != tdata)
-                m_head->m_next = tdata;
+            // Wait until there's a free chunk_data.
+            while(m_free == 0)
+                m_honk.wait(lock);
 
-            // If there's no current tail, then it's us!
+            // Remove it from the list of free chunks.
+            thread_data* td = m_free;
+            m_free = m_free->m_next;
+
+            // Update head (and possibly tail) to reflect the new work-list.
+            if(m_head && m_head != td)
+                m_head->m_next = td;
+            m_head = td;
+
             if(m_tail == 0)
-                m_tail = tdata;
+                m_tail = td;
 
-            // thread is now at the head of the queue
-            tdata->m_next = 0;
-            m_head = tdata;
+            td->m_output.clear();
+            td->m_next    = 0;
+            td->m_input   = compressed;
+            td->m_ready   = false;
 
-            tdata->m_ready = false;
-
-            return true;
+            return td;
         }
 
         void report(thread_data* tdata)
         {
             boost::mutex::scoped_lock lock(m_mutex);
 
-            if(m_tail != tdata && tdata->m_output.empty())
-            {
-                // There's no point in waiting to output an empty result
-                // chunk. In that case we remove ourself from the queue.
-                thread_data* prev = m_tail;
-                for(; prev; prev = prev->m_next)
-                    if(prev->m_next == tdata)
-                        break;
+            // if(m_tail != tdata && tdata->m_output.empty())
+            // {
+            //     // There's no point in waiting to output an empty result
+            //     // chunk. In that case we remove ourself from the queue.
+            //     thread_data* prev = m_tail;
+            //     for(; prev; prev = prev->m_next)
+            //         if(prev->m_next == tdata)
+            //             break;
 
-                if(prev)
-                    prev->m_next = tdata->m_next;
-                if(m_head == tdata)
-                    m_head = prev;
+            //     if(prev)
+            //         prev->m_next = tdata->m_next;
+            //     if(m_head == tdata)
+            //         m_head = prev;
 
-                return;
-            }
+            //     return;
+            // }
+
+            tdata->m_ready = true;
 
             if(m_tail == tdata)
             {
@@ -156,31 +176,41 @@ namespace
                 std::cout << tdata->m_output;
                 thread_data* cur = tdata->m_next;
 
+                // Push to freelist
+                tdata->m_next = m_free;
+                m_free = tdata;
+
                 // Also spin through any other chunks that are ready. Write the
                 // data and wake the thread that is waiting.
                 while(cur && cur->m_ready)
                 {
+                    thread_data* tmp = cur;
+
                     std::cout << cur->m_output;
-                    cur->m_honk.notify_one();
                     cur = cur->m_next;
+
+                    tmp->m_next = m_free;
+                    m_free = tmp;
                 }
 
                 m_tail = cur;
-            }
-            else
-            {
-                // We have data, but it's not our turn. Go to sleep.
-                tdata->m_ready = true;
-                tdata->m_honk.wait(lock);
+
+                if(m_tail == 0)
+                    m_head = 0;
+
+                m_honk.notify_all();
             }
         }
 
-        database&    m_db;
-        thread_data* m_head;
-        thread_data* m_tail;
-        bool         m_trim;
-        std::size_t  m_prefix_size;
-        boost::mutex m_mutex;
+        database&                m_db;
+        thread_data*             m_head;
+        thread_data*             m_tail;
+        thread_data*             m_free;
+        std::vector<thread_data> m_data;
+        bool                     m_trim;
+        std::size_t              m_prefix_size;
+        boost::condition         m_honk;
+        boost::mutex             m_mutex;
     };
 }
 
@@ -220,18 +250,19 @@ void find(const bfs::path& cdb_path, const options& opt)
 
         mt_search mts(*db, trim, prefix_size);
 
-        auto worker = [&]
+        auto worker = [&](const char* w)
         {
             mts.search_db(compile_regex(pattern, 0, find_regex_options),
-                          compile_regex(file_match, 0, file_regex_options));
+                          compile_regex(file_match, 0, file_regex_options),
+                          w);
         };
 
         boost::thread_group workers;
         if(unsigned hw_threads = boost::thread::hardware_concurrency())
             for(unsigned i = 0; i != hw_threads-1; ++i)
-                workers.create_thread(worker);
+                workers.create_thread(std::bind(worker, "w1"));
 
-        worker();
+        worker("w0");
 
         workers.join_all();
     }
