@@ -73,25 +73,15 @@ namespace
             }
         }
 
-        void search_db(regex_ptr re, regex_ptr file_re, const char* id)
+        void search_db(regex_ptr re, regex_ptr file_re)
         {
             std::string uncompressed;
-
-            profiler& p = make_profiler(id);
 
             // The worker thread loop consists of repeatedly asking for a
             // compressed chunk of data, uncompressing it and reporting the
             // reuslts. We do this until all chunks have been processed.
-            for(;;)
+            while(thread_data* td = next_chunk())
             {
-                thread_data* td = 0;
-                {
-                    profile_scope prof(p);
-                    td = next_chunk();
-                }
-                if(td == 0)
-                    break;
-
                 snappy_uncompress(td->m_input.first, td->m_input.second, uncompressed);
                 db_chunk chunk(uncompressed);
 
@@ -151,23 +141,6 @@ namespace
         {
             boost::mutex::scoped_lock lock(m_mutex);
 
-            // if(m_tail != tdata && tdata->m_output.empty())
-            // {
-            //     // There's no point in waiting to output an empty result
-            //     // chunk. In that case we remove ourself from the queue.
-            //     thread_data* prev = m_tail;
-            //     for(; prev; prev = prev->m_next)
-            //         if(prev->m_next == tdata)
-            //             break;
-
-            //     if(prev)
-            //         prev->m_next = tdata->m_next;
-            //     if(m_head == tdata)
-            //         m_head = prev;
-
-            //     return;
-            // }
-
             tdata->m_ready = true;
 
             if(m_tail == tdata)
@@ -181,7 +154,7 @@ namespace
                 m_free = tdata;
 
                 // Also spin through any other chunks that are ready. Write the
-                // data and wake the thread that is waiting.
+                // data and push them to the freelist.
                 while(cur && cur->m_ready)
                 {
                     thread_data* tmp = cur;
@@ -250,19 +223,18 @@ void find(const bfs::path& cdb_path, const options& opt)
 
         mt_search mts(*db, trim, prefix_size);
 
-        auto worker = [&](const char* w)
+        auto worker = [&]
         {
             mts.search_db(compile_regex(pattern, 0, find_regex_options),
-                          compile_regex(file_match, 0, file_regex_options),
-                          w);
+                          compile_regex(file_match, 0, file_regex_options));
         };
 
         boost::thread_group workers;
         if(unsigned hw_threads = boost::thread::hardware_concurrency())
             for(unsigned i = 0; i != hw_threads-1; ++i)
-                workers.create_thread(std::bind(worker, "w1"));
+                workers.create_thread(worker);
 
-        worker("w0");
+        worker();
 
         workers.join_all();
     }
