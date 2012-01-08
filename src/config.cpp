@@ -31,9 +31,9 @@ namespace
 
     void validate_port(const std::string& value)
     {
-        auto re = compile_regex(value);
+        auto re = compile_regex("\\d{1,5}");
 
-        if(re->match(value) || boost::lexical_cast<int>(value) > 65535)
+        if(!re->match(value) || boost::lexical_cast<int>(value) > 65535)
             throw std::logic_error("'" + value + "' is not a valid port number");
     }
 
