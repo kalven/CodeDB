@@ -13,6 +13,7 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/condition.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <iostream>
 
@@ -56,12 +57,12 @@ namespace
     class mt_search
     {
       public:
-        mt_search(database& db, bool trim, std::size_t prefix_size)
+        mt_search(database& db, bool trim, std::size_t prefix_size, std::size_t buffer_count)
           : m_db(db)
           , m_head(0)
           , m_tail(0)
           , m_free(0)
-          , m_data(8)
+          , m_data(buffer_count)
           , m_trim(trim)
           , m_prefix_size(prefix_size)
         {
@@ -185,6 +186,25 @@ namespace
         boost::condition         m_honk;
         boost::mutex             m_mutex;
     };
+
+    unsigned get_thread_count(const config& cfg)
+    {
+        std::string spec = cfg.get_value("find-threads");
+
+        unsigned threads = 0;
+
+        if(spec == "default")
+            threads = boost::thread::hardware_concurrency();
+        else
+            threads = boost::lexical_cast<unsigned>(spec);
+
+        return std::max(threads, 1u);
+    }
+
+    unsigned get_buffer_count(unsigned thread_count)
+    {
+        return thread_count == 1 ? 1u : unsigned(2.5 * thread_count);
+    }
 }
 
 void find(const bfs::path& cdb_path, const options& opt)
@@ -212,6 +232,8 @@ void find(const bfs::path& cdb_path, const options& opt)
         cfg.get_value("nocase-file-match") == "on" ? "i" : "";
 
     bool trim = cfg.get_value("find-trim-ws") == "on";
+    unsigned thread_count = get_thread_count(cfg);
+    unsigned buffer_count = get_buffer_count(thread_count);
 
     for(unsigned i = 0; i != opt.m_args.size(); ++i)
     {
@@ -221,7 +243,7 @@ void find(const bfs::path& cdb_path, const options& opt)
         if(opt.m_options.count("-v"))
             pattern = escape_regex(pattern);
 
-        mt_search mts(*db, trim, prefix_size);
+        mt_search mts(*db, trim, prefix_size, buffer_count);
 
         auto worker = [&]
         {
@@ -230,9 +252,8 @@ void find(const bfs::path& cdb_path, const options& opt)
         };
 
         boost::thread_group workers;
-        if(unsigned hw_threads = boost::thread::hardware_concurrency())
-            for(unsigned i = 0; i != hw_threads-1; ++i)
-                workers.create_thread(worker);
+        for(unsigned i = 0; i != thread_count-1; ++i)
+            workers.create_thread(worker);
 
         worker();
 

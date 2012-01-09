@@ -26,7 +26,7 @@ namespace
     void validate_bool(const std::string& value)
     {
         if(value != "on" && value != "off")
-            throw std::logic_error("'" + value + "' is not a valid boolean, expected 'on' or 'off'");
+            throw std::runtime_error("'" + value + "' is not a valid boolean, expected 'on' or 'off'");
     }
 
     void validate_port(const std::string& value)
@@ -34,7 +34,15 @@ namespace
         auto re = compile_regex("\\d{1,5}");
 
         if(!re->match(value) || boost::lexical_cast<int>(value) > 65535)
-            throw std::logic_error("'" + value + "' is not a valid port number");
+            throw std::runtime_error("'" + value + "' is not a valid port number");
+    }
+
+    void validate_threads(const std::string& value)
+    {
+        auto re = compile_regex("default|\\d+");
+
+        if(!re->match(value))
+            throw std::runtime_error("'" + value + "' is not valid, expected 'default' or an integer");
     }
 
     struct cfg_key
@@ -64,6 +72,7 @@ namespace
             keys.insert(std::make_pair("build-trim-ws", cfg_key("on", &validate_bool)));
             keys.insert(std::make_pair("find-trim-ws", cfg_key("off", &validate_bool)));
             keys.insert(std::make_pair("serve-port", cfg_key("8080", &validate_port)));
+            keys.insert(std::make_pair("find-threads", cfg_key("default", &validate_threads)));
         }
 
         return keys;
