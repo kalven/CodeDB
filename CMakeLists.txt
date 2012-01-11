@@ -25,7 +25,7 @@ endif()
 if(USE_RE2)
 
   find_path    (RE2_INC re2.h   PATHS /usr/local/include /opt/local/include /usr/include PATH_SUFFIXES re2)
-  find_library (RE2_LIB re2     PATHS /usr/local/lub /opt/local/lib /usr/lib)
+  find_library (RE2_LIB re2     PATHS /usr/local/lib /opt/local/lib /usr/lib)
 
   set(LIBS ${LIBS} ${RE2_LIB})
 
