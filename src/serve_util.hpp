@@ -11,10 +11,9 @@
 #include <string>
 #include <map>
 
-struct http_query
-{
-    std::string                        m_action;
-    std::map<std::string, std::string> m_args;
+struct http_query {
+  std::string m_action;
+  std::map<std::string, std::string> m_args;
 };
 
 http_query parse_http_query(const std::string& str);

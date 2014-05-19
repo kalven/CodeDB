@@ -13,21 +13,20 @@
 
 struct options;
 
-class config
-{
-  public:
-    void load(std::istream&);
-    void save(std::ostream&) const;
+class config {
+ public:
+  void load(std::istream&);
+  void save(std::ostream&) const;
 
-    static config default_config();
+  static config default_config();
 
-    std::string get_value(const std::string& key) const;
-    void set_value(const std::string& key, const std::string& value);
+  std::string get_value(const std::string& key) const;
+  void set_value(const std::string& key, const std::string& value);
 
-  private:
-    typedef std::map<std::string,std::string> cfg_map;
+ private:
+  typedef std::map<std::string, std::string> cfg_map;
 
-    cfg_map m_cfg;
+  cfg_map m_cfg;
 };
 
 void save_config(const config&, const bfs::path&);

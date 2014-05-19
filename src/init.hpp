@@ -6,4 +6,3 @@
 void init();
 
 #endif
-
